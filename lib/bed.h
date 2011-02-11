@@ -1,5 +1,5 @@
-#ifndef _BED_INTERSECT_H_
-#define _BED_INTERSECT_H_
+#ifndef __BED_INTERSECT_H__
+#define __BED_INTERSECT_H__
 #include <stdio.h>
 
 struct interval_node {

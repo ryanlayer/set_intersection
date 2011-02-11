@@ -208,7 +208,7 @@ int trim(struct chr_list *universe, struct chr_list *interval_set,
 
 		while (curr != NULL) {
 			curr_chrm = universe[i].head;
-			int offset = -1, start = -1;
+			//int offset = -1, start = -1;
 			while (curr_chrm != NULL) {
 				if (	(curr->start >= curr_chrm->start) &&
 						(curr->end <= curr_chrm->end) ) {
@@ -276,7 +276,8 @@ int chr_array_from_list(struct chr_list *list, struct bed_line **array,
 
 	int j = 0;
 	for (i = 0; i < chrom_num; i++) {
-		struct interval_node *curr = list[i].head, *last = NULL;
+		//struct interval_node *curr = list[i].head, *last = NULL;
+		struct interval_node *curr = list[i].head;
 
 		int chr = chr_name_to_int(list[i].name);
 

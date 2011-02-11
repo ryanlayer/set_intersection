@@ -10,24 +10,23 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
-
-	//MPI_Status status;
+	//struct timeval t0_start, t0_end, t1_start, t1_end, t2_start, t2_end;
+	//gettimeofday(&t0_start,0);
+	//gettimeofday(&t1_start,0);
+	
+	MPI_Status status;
 	int rank, size;
 
 	MPI_Init (&argc, &argv);    /* starts MPI */
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
 
+
 	if (argc < 4) {
 		fprintf(stderr, "usage: order <u> <a> <b> <N>\n");
 		MPI_Finalize();
 		return 1;
 	}
-
-	// Going to assign each thread to take N/size of the simulations.  Instead
-	// of having the master send out the results of the original intersection,
-	// we are going to make everyone do that.  We a thread is done, it will
-	// send its results, for both each pair and for the number of pairs
 
 	int chrom_num = 24;
 
@@ -78,6 +77,7 @@ int main(int argc, char *argv[]) {
 	 *   sample:  A (0) or B (1)
 	 *   type:  start (0) or  end (1)
 	 *   rank: order within
+	 *
 	 */
 	struct triple *AB = (struct triple *)
 			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
@@ -116,15 +116,27 @@ int main(int argc, char *argv[]) {
 	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
 	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
+	//sprintf(stderr, "O\t%d\n", num_pairs);
+
+/*
+	gettimeofday(&t1_end,0);
+	fprintf(stderr, "setup:%ld\t", 
+		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
+		t1_end.tv_usec - t1_start.tv_usec);
+*/
+
+
 	int *A_r = (int *) malloc (A_size * sizeof(int));
 	int *B_r = (int *) malloc (B_size * sizeof(int));
 	int *R = (int *) calloc(num_pairs, sizeof(int));
 
+	//gettimeofday(&t1_start,0);
+
 	int r = 0;
 
-	srand((unsigned)time(NULL) + rank);
+	srand((unsigned)time(NULL));
 
-	for (j = 0; j < (reps / size); j++) {
+	for (j = 0; j < reps; j++) {
 
 		// Fill and sort A and B
 		for (i = 0; i < A_size; i++)
@@ -136,8 +148,7 @@ int main(int argc, char *argv[]) {
 		qsort(B_r, B_size, sizeof(int), compare_ints);
 
 
-		//int x = check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
-		check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
+		int x = check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
 				num_pairs, R);
 
 		int o = count_intersecitons_scan(A_r, A_len, A_size, B_r, B_len,
@@ -147,8 +158,25 @@ int main(int argc, char *argv[]) {
 			r++;
 	}
 
-	printf("%d\to:%d\tr:%d\tN:%d\n", rank, num_pairs, r, 
-			(reps / size) );
+	printf("r:%d\tp:%d\n", r, reps);
+
+	/*
+	gettimeofday(&t1_end,0);
+	fprintf(stderr, "sim:%ld\t", 
+		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
+		t1_end.tv_usec - t1_start.tv_usec);
+	gettimeofday(&t0_end,0);
+	fprintf(stderr, "total:%ld\n", 
+		(t0_end.tv_sec - t0_start.tv_sec)*1000000 + 
+		t0_end.tv_usec - t0_start.tv_usec);
+	*/
+
+	/* Print the significance of each intersection
+	for (i = 0; i < num_pairs; i++)
+		printf("R\t%d\n", R[i]);
+	*/
+
+	printf("o:%d\tr:%d\tn:%d\n", num_pairs,r,reps);
 
 	MPI_Finalize();
 	return 0;

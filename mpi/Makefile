@@ -1,10 +1,10 @@
-CC=gcc
+CC=mpicc
 AR=ar
 CFLAGS= -Wall -Wno-deprecated -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
 LDFLAGS= -lgsl -lgslcblas -lm 
 
-EXECS=order_seq
+EXECS=order_mpi
 
 BED_FILE_OBJS=../lib/bed.o
 SET_FILE_OBJS=../lib/set_intersect.o
@@ -13,7 +13,7 @@ OBJS=$(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 all: $(EXECS)
 
-order_seq: order_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+order_mpi: order_mpi.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 %.o: %.cpp
@@ -21,3 +21,7 @@ order_seq: order_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 clean:
 	rm -f $(EXECS) *.a *.o $(LIBS) $(OBJS)
+
+clean:
+	rm -f *.o *.a a.out $(EXECS) $(OBJS)
+
