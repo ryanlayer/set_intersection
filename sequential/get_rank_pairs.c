@@ -9,6 +9,9 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
+	//struct timeval t0_start, t0_end, t1_start, t1_end, t2_start, t2_end;
+	//gettimeofday(&t0_start,0);
+	//gettimeofday(&t1_start,0);
 	
 	if (argc < 4) {
 		fprintf(stderr, "usage: order <u> <a> <b> <N>\n");
@@ -28,6 +31,7 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U_list, *A_list, *B_list;
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
+	int reps = atoi(argv[4]);
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
 	   (chr_list_from_bed_file(&A_list, chrom_names, chrom_num, A_file) == 1) ||
@@ -74,6 +78,8 @@ int main(int argc, char *argv[]) {
 	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
 
+	int j;
+
 	// sort A and B so they can be ranked
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
@@ -93,72 +99,21 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
-	struct interval *A_r = (struct interval *) malloc (
-			A_size * sizeof(struct interval));
-	struct interval *B_r = (struct interval *) malloc (
-			B_size * sizeof(struct interval));
+	for (i = 0; i < A_size; i++)
+		printf("(%d,%d)\n", A[i*2].key, A[i*2 + 1].key);
+
+	return 1;
 
 
-	for (i = 0; i < A_size; i++) {
-		A_r[i].start = A[i*2].key;
-		A_r[i].end =  A[i*2 + 1].key;
-	}
-	//qsort(A_r, A_size, sizeof(struct interval), compare_interval_by_start);
+	qsort(AB, 2*A_size + 2*B_size, sizeof(struct triple), compare_triple_lists);
 
-	for (i = 0; i < B_size; i++) {
-		B_r[i].start = B[i*2].key;
-		B_r[i].end = B[i*2 + 1].key;
-	}
-	//qsort(B_r, B_size, sizeof(struct interval), compare_interval_by_start);
+	// find the intersecting ranks there are atmost A + B pairs
+	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
+	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
-	/*
-	int c = 0;
-	for (i = 0; i < A_size; i++) {
-		// Search for the left-most interval in B with the start in A
-		int lo = -1, hi = B_size, mid;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_r[mid].start < A_r[i].start ) 
-				lo = mid;
-			else
-				hi = mid;
-
-		}
-
-		int left = hi;
-		// Small hack to make our property hold
-		if ( B_r[hi].start == A_r[i].start)
-			left++;
-
-		lo = -1;
-		hi = B_size;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_r[mid].start < A_r[i].end ) 
-				lo = mid;
-			else
-				hi = mid;
-		}
-
-		int right = hi;
-		if ( B_r[hi].start == A_r[i].end)
-			right++;
-
-
-		int k;
-
-		c += (right - left) + 
-				( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
-
-	}
-	*/
-
-	int c = count_intersections_bsearch(A_r, A_size, B_r, B_size);
-
-
-	printf("%d\n",c);
+	for (i = 0; i < num_pairs; i++)
+		printf("%d\t%d\n", pairs[2*i], pairs[2*i + 1]);
 
 	return 0;
+
 }

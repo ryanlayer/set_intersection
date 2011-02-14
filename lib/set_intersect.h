@@ -11,12 +11,18 @@ int compare_triple_lists (const void *a, const void *b);
 
 int compare_ints (const void *a, const void *b);
 
-int count_intersecitons_scan( int *A, 
+int count_intersections_bsearch( struct interval *A_r,
+								 int A_size,
+								 struct interval *B_r,
+								 int B_size );
+
+int count_intersections_scan( int *A, 
 							  int *A_len, 
 							  int A_size,
 							  int *B, 
 							  int *B_len,
 							  int B_size );
+
 int add_offsets( struct chr_list *U_list, 
 				  int chrom_num );
 

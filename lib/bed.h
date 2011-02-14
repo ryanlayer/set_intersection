@@ -2,6 +2,10 @@
 #define __BED_INTERSECT_H__
 #include <stdio.h>
 
+struct interval {
+	int start, end;
+};
+
 struct interval_node {
 	int start, end, offset;
 	struct interval_node *next;
@@ -30,6 +34,8 @@ void chr_list_insert_interval_node(struct chr_list *list,
 		struct interval_node *new_interval_node);
 
 void parse_bed_file(FILE *bed_file, struct chr_list chroms[], int chrom_num);
+
+int compare_interval_by_start(const void *a, const void *b);
 
 int compare_interval_node_by_start(const void *a, const void *b);
 

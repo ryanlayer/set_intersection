@@ -106,7 +106,9 @@ int main(int argc, char *argv[]) {
 	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
 	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
-	//sprintf(stderr, "O\t%d\n", num_pairs);
+
+fprintf(stderr, "O\t%d\n", num_pairs);
+return 1;
 
 /*
 	gettimeofday(&t1_end,0);
@@ -138,35 +140,18 @@ int main(int argc, char *argv[]) {
 		qsort(B_r, B_size, sizeof(int), compare_ints);
 
 
-		int x = check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
+		check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
 				num_pairs, R);
 
-		int o = count_intersecitons_scan(A_r, A_len, A_size, B_r, B_len,
+		int o = count_intersections_scan(A_r, A_len, A_size, B_r, B_len,
 				B_size);
 
 		if (o >= num_pairs)
 			r++;
 	}
 
-	printf("r:%d\tp:%d\n", r, reps);
-
-	/*
-	gettimeofday(&t1_end,0);
-	fprintf(stderr, "sim:%ld\t", 
-		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
-		t1_end.tv_usec - t1_start.tv_usec);
-	gettimeofday(&t0_end,0);
-	fprintf(stderr, "total:%ld\n", 
-		(t0_end.tv_sec - t0_start.tv_sec)*1000000 + 
-		t0_end.tv_usec - t0_start.tv_usec);
-	*/
-
-	/* Print the significance of each intersection
-	for (i = 0; i < num_pairs; i++)
-		printf("R\t%d\n", R[i]);
-	*/
-
-	printf("o:%d\tr:%d\tn:%d\n", num_pairs,r,reps);
+	printf("o:%d\tr:%d\tn:%d\tp:%f\n", num_pairs,r,reps, 
+			((double)r + 1) / ( (double)reps + 1) );
 
 	return 0;
 }
