@@ -56,6 +56,12 @@ int compare_interval_node_by_start(const void *a, const void *b) {
 	return a_i->start - b_i->start;
 }
 
+int compare_interval_by_start(const void *a, const void *b) {
+	struct interval *a_i = (struct interval *)a;
+	struct interval *b_i = (struct interval *)b;
+	return a_i->start - b_i->start;
+}
+
 int compare_interval_node_by_end(const void *a, const void *b) {
 	struct interval_node *a_i = (struct interval_node *)a;
 	struct interval_node *b_i = (struct interval_node *)b;

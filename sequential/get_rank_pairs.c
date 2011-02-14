@@ -99,6 +99,11 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
+	for (i = 0; i < A_size; i++)
+		printf("(%d,%d)\n", A[i*2].key, A[i*2 + 1].key);
+
+	return 1;
+
 
 	qsort(AB, 2*A_size + 2*B_size, sizeof(struct triple), compare_triple_lists);
 
@@ -106,69 +111,9 @@ int main(int argc, char *argv[]) {
 	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
 	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
-
-fprintf(stderr, "O\t%d\n", num_pairs);
-return 1;
-
-/*
-	gettimeofday(&t1_end,0);
-	fprintf(stderr, "setup:%ld\t", 
-		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
-		t1_end.tv_usec - t1_start.tv_usec);
-*/
-
-
-	int *A_r = (int *) malloc (A_size * sizeof(int));
-	int *B_r = (int *) malloc (B_size * sizeof(int));
-	int *R = (int *) calloc(num_pairs, sizeof(int));
-
-	//gettimeofday(&t1_start,0);
-
-	int r = 0;
-
-	srand((unsigned)time(NULL));
-
-	for (j = 0; j < reps; j++) {
-
-		// Fill and sort A and B
-		for (i = 0; i < A_size; i++)
-			A_r[i] = rand() % max;
-		qsort(A_r, A_size, sizeof(int), compare_ints);
-
-		for (i = 0; i < B_size; i++)
-			B_r[i] = rand() % max;
-		qsort(B_r, B_size, sizeof(int), compare_ints);
-
-
-		check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
-				num_pairs, R);
-
-		int o = count_intersections_scan(A_r, A_len, A_size, B_r, B_len,
-				B_size);
-
-		if (o >= num_pairs)
-			r++;
-	}
-
-
-	/*
-	gettimeofday(&t1_end,0);
-	fprintf(stderr, "sim:%ld\t", 
-		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
-		t1_end.tv_usec - t1_start.tv_usec);
-	gettimeofday(&t0_end,0);
-	fprintf(stderr, "total:%ld\n", 
-		(t0_end.tv_sec - t0_start.tv_sec)*1000000 + 
-		t0_end.tv_usec - t0_start.tv_usec);
-	*/
-
-	/* Print the significance of each intersection
 	for (i = 0; i < num_pairs; i++)
-		printf("R\t%d\n", R[i]);
-	*/
-
-	printf("o:%d\tr:%d\tn:%d\tp:%f\n", num_pairs,r,reps, 
-			((double)r + 1) / ( (double)reps + 1) );
+		printf("%d\t%d\n", pairs[2*i], pairs[2*i + 1]);
 
 	return 0;
+
 }

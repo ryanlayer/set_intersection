@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
-#include <mpi.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -10,21 +9,9 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
-	//struct timeval t0_start, t0_end, t1_start, t1_end, t2_start, t2_end;
-	//gettimeofday(&t0_start,0);
-	//gettimeofday(&t1_start,0);
 	
-	MPI_Status status;
-	int rank, size;
-
-	MPI_Init (&argc, &argv);    /* starts MPI */
-	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
-
-
 	if (argc < 4) {
 		fprintf(stderr, "usage: order <u> <a> <b> <N>\n");
-		MPI_Finalize();
 		return 1;
 	}
 
@@ -41,7 +28,6 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U_list, *A_list, *B_list;
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
-	int reps = atoi(argv[4]);
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
 	   (chr_list_from_bed_file(&A_list, chrom_names, chrom_num, A_file) == 1) ||
@@ -88,8 +74,6 @@ int main(int argc, char *argv[]) {
 	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
 
-	int j;
-
 	// sort A and B so they can be ranked
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
@@ -109,75 +93,72 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
-
-	qsort(AB, 2*A_size + 2*B_size, sizeof(struct triple), compare_triple_lists);
-
-	// find the intersecting ranks there are atmost A + B pairs
-	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
-	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
-
-	//sprintf(stderr, "O\t%d\n", num_pairs);
-
-/*
-	gettimeofday(&t1_end,0);
-	fprintf(stderr, "setup:%ld\t", 
-		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
-		t1_end.tv_usec - t1_start.tv_usec);
-*/
+	struct interval *A_r = (struct interval *) malloc (
+			A_size * sizeof(struct interval));
+	struct interval *B_r = (struct interval *) malloc (
+			B_size * sizeof(struct interval));
 
 
-	int *A_r = (int *) malloc (A_size * sizeof(int));
-	int *B_r = (int *) malloc (B_size * sizeof(int));
-	int *R = (int *) calloc(num_pairs, sizeof(int));
-
-	//gettimeofday(&t1_start,0);
-
-	int r = 0;
-
-	srand((unsigned)time(NULL));
-
-	for (j = 0; j < reps; j++) {
-
-		// Fill and sort A and B
-		for (i = 0; i < A_size; i++)
-			A_r[i] = rand() % max;
-		qsort(A_r, A_size, sizeof(int), compare_ints);
-
-		for (i = 0; i < B_size; i++)
-			B_r[i] = rand() % max;
-		qsort(B_r, B_size, sizeof(int), compare_ints);
-
-
-		int x = check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
-				num_pairs, R);
-
-		int o = count_intersecitons_scan(A_r, A_len, A_size, B_r, B_len,
-				B_size);
-
-		if (o >= num_pairs)
-			r++;
+	for (i = 0; i < A_size; i++) {
+		A_r[i].start = A[i*2].key;
+		A_r[i].end =  A[i*2 + 1].key;
 	}
+	//qsort(A_r, A_size, sizeof(struct interval), compare_interval_by_start);
 
-	printf("r:%d\tp:%d\n", r, reps);
+	for (i = 0; i < B_size; i++) {
+		B_r[i].start = B[i*2].key;
+		B_r[i].end = B[i*2 + 1].key;
+	}
+	//qsort(B_r, B_size, sizeof(struct interval), compare_interval_by_start);
 
 	/*
-	gettimeofday(&t1_end,0);
-	fprintf(stderr, "sim:%ld\t", 
-		(t1_end.tv_sec - t1_start.tv_sec)*1000000 + 
-		t1_end.tv_usec - t1_start.tv_usec);
-	gettimeofday(&t0_end,0);
-	fprintf(stderr, "total:%ld\n", 
-		(t0_end.tv_sec - t0_start.tv_sec)*1000000 + 
-		t0_end.tv_usec - t0_start.tv_usec);
+	int c = 0;
+	for (i = 0; i < A_size; i++) {
+		// Search for the left-most interval in B with the start in A
+		int lo = -1, hi = B_size, mid;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_r[mid].start < A_r[i].start ) 
+				lo = mid;
+			else
+				hi = mid;
+
+		}
+
+		int left = hi;
+		// Small hack to make our property hold
+		if ( B_r[hi].start == A_r[i].start)
+			left++;
+
+		lo = -1;
+		hi = B_size;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_r[mid].start < A_r[i].end ) 
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		int right = hi;
+		if ( B_r[hi].start == A_r[i].end)
+			right++;
+
+
+		int k;
+
+		c += (right - left) + 
+				( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
+
+	}
 	*/
 
-	/* Print the significance of each intersection
-	for (i = 0; i < num_pairs; i++)
-		printf("R\t%d\n", R[i]);
-	*/
+	int c = count_intersections_bsearch(A_r, A_size, B_r, B_size);
 
-	printf("o:%d\tr:%d\tn:%d\n", num_pairs,r,reps);
 
-	MPI_Finalize();
+	printf("%d\n",c);
+
 	return 0;
 }

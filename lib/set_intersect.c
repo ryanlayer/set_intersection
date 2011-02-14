@@ -16,11 +16,61 @@ int compare_ints (const void *a, const void *b) {
 	return *a_i - *b_i;
 }
 
-//{{{ int count_intersecitons_scan( int *A, 
+int count_intersections_bsearch( struct interval *A_r,
+								 int A_size,
+								 struct interval *B_r,
+								 int B_size )
+{
+	int i, c = 0;
+	for (i = 0; i < A_size; i++) {
+		// Search for the left-most interval in B with the start in A
+		int lo = -1, hi = B_size, mid;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_r[mid].start < A_r[i].start ) 
+				lo = mid;
+			else
+				hi = mid;
+
+		}
+
+		int left = hi;
+
+		lo = -1;
+		hi = B_size;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_r[mid].start < A_r[i].end ) 
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		int right = hi;
+
+		/* This is the way to save the intersecting pairs
+		for (k = left; k <= right; k++) {
+			if ( (k > 0) && (A_r[i].start < B_r[k - 1].end))
+			   printf("%d\t%d\n", i, k - 1);	
+		}
+		*/
+
+		c += (right - left) + 
+				( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
+
+	}
+
+	return c;
+}
+
+
+//{{{ int count_intersections_scan( int *A, 
 /*
  * Scan two sorted lists counting overlaps
  */
-int count_intersecitons_scan( int *A, 
+int count_intersections_scan( int *A, 
 							  int *A_len, 
 							  int A_size,
 							  int *B, 
