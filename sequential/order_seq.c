@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 			r++;
 	}
 
-	printf("r:%d\tp:%d\n", r, reps);
+	printf("r:%d\tp:%d\t%f\n", r, reps, ( (double)(r + 1))/(reps+1));
 
 	/*
 	gettimeofday(&t1_end,0);
