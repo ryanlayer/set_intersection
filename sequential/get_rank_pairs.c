@@ -84,8 +84,10 @@ int main(int argc, char *argv[]) {
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
 
-	int *A_len = (int *) malloc(A_size * sizeof(int));
-	int *B_len = (int *) malloc(B_size * sizeof(int));
+	unsigned int *A_len = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_len = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
 	// Set ranks
 	for (i = 0; i < 2*A_size; i++)
@@ -99,20 +101,21 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
-	for (i = 0; i < A_size; i++)
-		printf("(%d,%d)\n", A[i*2].key, A[i*2 + 1].key);
+	//for (i = 0; i < A_size; i++)
+		//printf("(%d,%d)\n", A[i*2].key, A[i*2 + 1].key);
 
-	return 1;
+	//return 1;
 
 
 	qsort(AB, 2*A_size + 2*B_size, sizeof(struct triple), compare_triple_lists);
 
 	// find the intersecting ranks there are atmost A + B pairs
-	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
+	unsigned int *pairs = (unsigned int *) malloc( 
+			2 * (A_size + B_size) * sizeof(unsigned int));
 	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
 	for (i = 0; i < num_pairs; i++)
-		printf("%d\t%d\n", pairs[2*i], pairs[2*i + 1]);
+		printf("%u\t%u\n", pairs[2*i], pairs[2*i + 1]);
 
 	return 0;
 

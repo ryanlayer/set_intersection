@@ -1,7 +1,7 @@
 #include "../lib/bed.h"
 
 struct triple {
-	int key, sample, type, rank;
+	unsigned int key, sample, type, rank;
 };
 
 int compare_triple_lists (const void *a, const void *b) {
@@ -11,11 +11,12 @@ int compare_triple_lists (const void *a, const void *b) {
 }
 
 int compare_ints (const void *a, const void *b) {
-	int *a_i = (int *)a;
-	int *b_i = (int *)b;
+	unsigned int *a_i = (unsigned int *)a;
+	unsigned int *b_i = (unsigned int *)b;
 	return *a_i - *b_i;
 }
 
+//{{{ int count_intersections_bsearch( struct interval *A_r,
 int count_intersections_bsearch( struct interval *A_r,
 								 int A_size,
 								 struct interval *B_r,
@@ -36,6 +37,9 @@ int count_intersections_bsearch( struct interval *A_r,
 		}
 
 		int left = hi;
+		if ( B_r[hi].start == A_r[i].start)
+			left++;
+
 
 		lo = -1;
 		hi = B_size;
@@ -49,6 +53,9 @@ int count_intersections_bsearch( struct interval *A_r,
 		}
 
 		int right = hi;
+
+		if ( B_r[hi].start == A_r[i].end)
+			right++;
 
 		/* This is the way to save the intersecting pairs
 		for (k = left; k <= right; k++) {
@@ -64,29 +71,27 @@ int count_intersections_bsearch( struct interval *A_r,
 
 	return c;
 }
-
+// }}}
 
 //{{{ int count_intersections_scan( int *A, 
 /*
  * Scan two sorted lists counting overlaps
  */
-int count_intersections_scan( int *A, 
-							  int *A_len, 
+int count_intersections_scan( unsigned int *A, 
+							  unsigned int *A_len, 
 							  int A_size,
-							  int *B, 
-							  int *B_len,
+							  unsigned int *B, 
+							  unsigned int *B_len,
 							  int B_size )
 {
 
 	int curr_A = 0, curr_B = 0;
-	int A_val = 0, B_val = 0;
+	unsigned int A_val = 0, B_val = 0;
 	int inA = 0, inB = 0;
 
 	int o = 0;
 
-	while ( (curr_A < A_size) && (curr_B < B_size) ) {
-
-		//printf("A:%d,%d\tB:%d,%d\n", curr_A, A_size, curr_B, B_size);
+	while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
 
 		// The current values depend on if we are in or not in a segment
 		if ( inA )
@@ -99,21 +104,62 @@ int count_intersections_scan( int *A,
 		else
 			B_val = B[curr_B];
 
-		// Move the pointer
-		if ( A_val < B_val ) {
+		if ( (curr_A < A_size - 1 ) && (curr_B < B_size - 1 ) ) {
+
+			// Move the pointer
+			if ( A_val < B_val ) {
+
+				if (inA)
+					++curr_A;
+				inA = !inA;
+
+			} else if ( A_val > B_val ) {
+
+				if (inB)
+					++curr_B;
+				inB = !inB;
+
+			} else { // A_val == B_val
+
+				// both are ending (EE)
+				if (inA && inB) {
+					++curr_A;
+					++curr_B;
+					inA = !inA;
+					inB = !inB;
+
+				// A is ending B is starting (ES)
+				} else if (inA && !inB) {
+					//++curr_B;
+					inB = !inB;
+				// A is starting B is ending (SE)
+				} else if (!inA && inB) {
+					//++curr_A;
+					inA = !inA;
+				// both are starting (SS)
+				} else { 
+					inA = !inA;
+					inB = !inB;
+				}
+			}
+		} else if (curr_A < A_size - 1 ) {
 			if (inA)
 				++curr_A;
-
 			inA = !inA;
-		} else {
+		} else if (curr_B < B_size - 1 ) {
 			if (inB)
 				++curr_B;
-
 			inB = !inB;
 		}
 
-		if (inA && inB) 
+		if (inA && inB)  {
+			/*
+			printf("%d (%u,%u)\t%d (%u,%u)\n", 
+					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
+					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
+			*/
 			++o;
+		}
 	}
 
 	return o;
@@ -127,16 +173,17 @@ int count_intersections_scan( int *A,
  * to map intervals in the sample to the continguous space. 
  *
  */
-int add_offsets( struct chr_list *U_list, 
-				  int chrom_num )
+unsigned int add_offsets( struct chr_list *U_list, 
+						  int chrom_num )
 {
-	int i, c = 0, max = 0;
+	int i;
+	unsigned int c = 0, max = 0;
 	for (i = 0; i < chrom_num; i++) {
 		struct interval_node *curr = U_list[i].head;
 		while (curr != NULL) {
 			curr->offset = c;
 
-			int end = c + curr->end - curr->start;
+			unsigned int end = c + curr->end - curr->start;
 			if (end > max)
 				max = end;
 
@@ -181,7 +228,7 @@ int count_intersections( struct triple *AB,
 int find_intersecting_ranks( struct triple *AB,
 							 int A_size,
 							 int B_size,
-							 int *pairs)
+							 unsigned int *pairs)
 {
 
 	int num_pairs = 0;
@@ -210,16 +257,16 @@ int find_intersecting_ranks( struct triple *AB,
 
 //{{{ int check_observed_ranks( int *pairs,
 int check_observed_ranks( int *pairs,
-						  int *A_r,
-						  int *A_len,
-						  int *B_r,
-						  int *B_len,
+						  unsigned int *A_r,
+						  unsigned int *A_len,
+						  unsigned int *B_r,
+						  unsigned int *B_len,
 						  int num_pairs,
 						  int *R )
 {
 	int x = 0;
 	int rankA, rankB;
-	int A_start, A_end, B_start, B_end;
+	unsigned int A_start, A_end, B_start, B_end;
 	int i;
 	for (i = 0; i < num_pairs; i++) {
 		rankA = pairs[i*2];	
@@ -261,7 +308,7 @@ void map_intervals( struct triple *A,
 {
 	int i, j, k = 0;
 	for (i = 0; i < A_size; i++) {
-		int start = -1, offset = -1;
+		unsigned int start = 0, offset = 0;
 		// find the universe interval the current interval is in
 		// so we can caclulate its place in the continous space
 		for (j = 0; j < U_size; j++) {

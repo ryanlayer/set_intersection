@@ -1,6 +1,6 @@
 CC=mpicc
 AR=ar
-CFLAGS= -Wall -Wno-deprecated -O3 
+CFLAGS= -Wall -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
 LDFLAGS= -lgsl -lgslcblas -lm 
 
@@ -18,9 +18,6 @@ order_mpi: order_mpi.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $@
-
-clean:
-	rm -f $(EXECS) *.a *.o $(LIBS) $(OBJS)
 
 clean:
 	rm -f *.o *.a a.out $(EXECS) $(OBJS)

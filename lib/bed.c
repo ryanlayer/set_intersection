@@ -12,7 +12,9 @@
 #define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
-struct interval_node *new_interval_node(int start, int end) {
+struct interval_node *new_interval_node(unsigned int start,
+										unsigned int end) {
+
    struct interval_node *i = (struct interval_node *)
 		malloc( sizeof(struct interval_node) );
 	i->start = start;
@@ -32,13 +34,15 @@ struct chr_list new_chr_list(char *name) {
 	return c;
 }
 
-void chr_list_insert_interval(struct chr_list *list, int start, int end) {
+void chr_list_insert_interval(struct chr_list *list,
+							  unsigned int start,
+							  unsigned int end) {
    struct interval_node *i = new_interval_node(start, end);
    chr_list_insert_interval_node(list, i);
 }
 
 void chr_list_insert_interval_node(struct chr_list *list, 
-		struct interval_node *new_interval_node) {
+								   struct interval_node *new_interval_node) {
 	new_interval_node->next = list->head;
 	list->head = new_interval_node;
 	list->size++;

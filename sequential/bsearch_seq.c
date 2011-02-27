@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
 	}
 	//qsort(B_r, B_size, sizeof(struct interval), compare_interval_by_start);
 
-	/*
 	int c = 0;
 	for (i = 0; i < A_size; i++) {
 		// Search for the left-most interval in B with the start in A
@@ -142,7 +141,10 @@ int main(int argc, char *argv[]) {
 				hi = mid;
 		}
 
+
+
 		int right = hi;
+		//printf("%d\t%d\t%d\t%d\n", A_r[i].start, A_r[i].end, right, left);
 		if ( B_r[hi].start == A_r[i].end)
 			right++;
 
@@ -153,9 +155,8 @@ int main(int argc, char *argv[]) {
 				( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
 
 	}
-	*/
 
-	int c = count_intersections_bsearch(A_r, A_size, B_r, B_size);
+	c = count_intersections_bsearch(A_r, A_size, B_r, B_size);
 
 
 	printf("%d\n",c);

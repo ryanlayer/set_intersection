@@ -84,8 +84,10 @@ int main(int argc, char *argv[]) {
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
 
-	int *A_len = (int *) malloc(A_size * sizeof(int));
-	int *B_len = (int *) malloc(B_size * sizeof(int));
+	unsigned int *A_len = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_len = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
 	// Set ranks
 	for (i = 0; i < 2*A_size; i++)
@@ -107,8 +109,8 @@ int main(int argc, char *argv[]) {
 	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
 
 
-fprintf(stderr, "O\t%d\n", num_pairs);
-return 1;
+//fprintf(stderr, "O\t%d\n", num_pairs);
+//return 1;
 
 /*
 	gettimeofday(&t1_end,0);
@@ -118,8 +120,8 @@ return 1;
 */
 
 
-	int *A_r = (int *) malloc (A_size * sizeof(int));
-	int *B_r = (int *) malloc (B_size * sizeof(int));
+	unsigned int *A_r = (unsigned int *) malloc (A_size * sizeof(unsigned int));
+	unsigned int *B_r = (unsigned int *) malloc (B_size * sizeof(unsigned int));
 	int *R = (int *) calloc(num_pairs, sizeof(int));
 
 	//gettimeofday(&t1_start,0);

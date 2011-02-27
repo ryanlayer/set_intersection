@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
-#include <mpi.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -10,26 +9,14 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
-
-	//MPI_Status status;
-	int rank, size;
-
-	MPI_Init (&argc, &argv);    /* starts MPI */
-	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
-
+	//struct timeval t0_start, t0_end, t1_start, t1_end, t2_start, t2_end;
+	//gettimeofday(&t0_start,0);
+	//gettimeofday(&t1_start,0);
+	
 	if (argc < 4) {
 		fprintf(stderr, "usage: order <u> <a> <b> <N>\n");
-		MPI_Finalize();
 		return 1;
 	}
-
-	fprintf(stderr, "%d\n", rank);
-
-	// Going to assign each thread to take N/size of the simulations.  Instead
-	// of having the master send out the results of the original intersection,
-	// we are going to make everyone do that.  We a thread is done, it will
-	// send its results, for both each pair and for the number of pairs
 
 	int chrom_num = 24;
 
@@ -44,7 +31,6 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U_list, *A_list, *B_list;
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
-	int reps = atoi(argv[4]);
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
 	   (chr_list_from_bed_file(&A_list, chrom_names, chrom_num, A_file) == 1) ||
@@ -55,6 +41,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	int max = add_offsets(U_list, chrom_num);
+
+	if (max == 0) {
+		fprintf(stderr, "Max is zero.\n");
+		return 1;
+	}
 
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
@@ -80,6 +71,7 @@ int main(int argc, char *argv[]) {
 	 *   sample:  A (0) or B (1)
 	 *   type:  start (0) or  end (1)
 	 *   rank: order within
+	 *
 	 */
 	struct triple *AB = (struct triple *)
 			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
@@ -90,68 +82,65 @@ int main(int argc, char *argv[]) {
 	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
 
-	int j;
-
 	// sort A and B so they can be ranked
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
 
-	int *A_len = (int *) malloc(A_size * sizeof(int));
-	int *B_len = (int *) malloc(B_size * sizeof(int));
+	unsigned int *A_len = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_len = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
-	// Set ranks
+	unsigned int *A_start = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_start = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
+
+	// Set sized
 	for (i = 0; i < 2*A_size; i++)
-		A[i].rank = i/2;
+		A_start[i] = A[i*2].key;
 	for (i = 0; i < 2*B_size; i++) 
-		B[i].rank = i/2;
+		B_start[i] = B[i*2].key;
 
-	// Get lengths
+	// Get lengthsrank = i/2;
 	for (i = 0; i < A_size; i++)
 		A_len[i] = A[i*2 + 1].key - A[i*2].key;
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
+	/*
+	A_size = 4;
+	B_size = 5;
 
-	qsort(AB, 2*A_size + 2*B_size, sizeof(struct triple), compare_triple_lists);
+	unsigned int *A_len = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_len = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
-	// find the intersecting ranks there are atmost A + B pairs
-	int *pairs = (int *) malloc( 2 * (A_size + B_size) * sizeof(int));
-	int num_pairs = find_intersecting_ranks(AB, A_size, B_size, pairs);
+	unsigned int *A_start = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_start = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
-	int *A_r = (int *) malloc (A_size * sizeof(int));
-	int *B_r = (int *) malloc (B_size * sizeof(int));
-	int *R = (int *) calloc(num_pairs, sizeof(int));
+	A_start[0] = 1; A_len[0] = 2;
+	A_start[1] = 6; A_len[1] = 2;
+	A_start[2] = 9; A_len[2] = 1;
+	A_start[3] = 11; A_len[3] = 5;
 
-	int r = 0;
-
-	srand((unsigned)time(NULL) + rank);
-
-	for (j = 0; j < (reps / size); j++) {
-
-		// Fill and sort A and B
-		for (i = 0; i < A_size; i++)
-			A_r[i] = rand() % max;
-		qsort(A_r, A_size, sizeof(int), compare_ints);
-
-		for (i = 0; i < B_size; i++)
-			B_r[i] = rand() % max;
-		qsort(B_r, B_size, sizeof(int), compare_ints);
+	B_start[0] = 2; B_len[0] = 2;
+	B_start[1] = 5; B_len[1] = 2;
+	B_start[2] = 9; B_len[2] = 1;
+	B_start[3] = 12; B_len[3] = 2;
+	B_start[4] = 14; B_len[4] = 1;
+	*/
 
 
-		//int x = check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
-		check_observed_ranks(pairs, A_r, A_len, B_r, B_len, 
-				num_pairs, R);
+	int c = count_intersections_scan(
+			A_start, A_len, A_size,
+			B_start, B_len, B_size );
 
-		int o = count_intersecitons_scan(A_r, A_len, A_size, B_r, B_len,
-				B_size);
+	printf("%d\n", c);
 
-		if (o >= num_pairs)
-			r++;
-	}
-
-	printf("%d\to:%d\tr:%d\tN:%d\n", rank, num_pairs, r, 
-			(reps / size) );
-
-	MPI_Finalize();
 	return 0;
+
 }

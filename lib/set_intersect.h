@@ -4,7 +4,7 @@
 #define __SET_INTERSECT_H__
 
 struct triple {
-	int key, sample, type, rank;
+	unsigned int key, sample, type, rank;
 };
 
 int compare_triple_lists (const void *a, const void *b);
@@ -16,11 +16,11 @@ int count_intersections_bsearch( struct interval *A_r,
 								 struct interval *B_r,
 								 int B_size );
 
-int count_intersections_scan( int *A, 
-							  int *A_len, 
+int count_intersections_scan( unsigned int *A, 
+							  unsigned int *A_len, 
 							  int A_size,
-							  int *B, 
-							  int *B_len,
+							  unsigned int *B, 
+							  unsigned int *B_len,
 							  int B_size );
 
 int add_offsets( struct chr_list *U_list, 
@@ -36,10 +36,10 @@ int find_intersecting_ranks( struct triple *AB,
 							 int *pairs);
 
 int check_observed_ranks( int *pairs,
-						  int *A_r,
-						  int *A_len,
-						  int *B_r,
-						  int *B_len,
+						  unsigned int *A_r,
+						  unsigned int *A_len,
+						  unsigned int *B_r,
+						  unsigned int *B_len,
 						  int num_pairs,
 						  int *R );
 
