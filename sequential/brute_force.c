@@ -117,10 +117,11 @@ int main(int argc, char *argv[]) {
 			unsigned int sB = B_start[j];
 			unsigned int eB = B_start[j] + B_len[j];
 			if ( (sA <= eB) && (eA >= sB) ) {
-				//printf("%d\t%d\n", i, j);
+				/*
 				printf("%d (%u,%u)\t%d (%u,%u)\n",
 						i, A_start[i], A_start[i] + A_len[i],
 						j, B_start[j], B_start[j] + B_len[j]);
+				*/
 				++c;
 			}
 		}

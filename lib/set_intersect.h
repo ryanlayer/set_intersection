@@ -11,9 +11,11 @@ int compare_triple_lists (const void *a, const void *b);
 
 int compare_ints (const void *a, const void *b);
 
-int count_intersections_bsearch( struct interval *A_r,
+int count_intersections_bsearch( unsigned int *A_start,
+								 unsigned int *A_len,
 								 int A_size,
-								 struct interval *B_r,
+								 unsigned int *B_start,
+								 unsigned int *B_len,
 								 int B_size );
 
 int count_intersections_scan( unsigned int *A, 

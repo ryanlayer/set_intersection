@@ -78,86 +78,31 @@ int main(int argc, char *argv[]) {
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
 
-	int *A_len = (int *) malloc(A_size * sizeof(int));
-	int *B_len = (int *) malloc(B_size * sizeof(int));
+	unsigned int *A_len = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_len = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
-	// Set ranks
+	unsigned int *A_start = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_start = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
+
+	// Set sized
 	for (i = 0; i < 2*A_size; i++)
-		A[i].rank = i/2;
+		A_start[i] = A[i*2].key;
 	for (i = 0; i < 2*B_size; i++) 
-		B[i].rank = i/2;
+		B_start[i] = B[i*2].key;
 
-	// Get lengths
+	// Get lengthsrank = i/2;
 	for (i = 0; i < A_size; i++)
 		A_len[i] = A[i*2 + 1].key - A[i*2].key;
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
-	struct interval *A_r = (struct interval *) malloc (
-			A_size * sizeof(struct interval));
-	struct interval *B_r = (struct interval *) malloc (
-			B_size * sizeof(struct interval));
-
-
-	for (i = 0; i < A_size; i++) {
-		A_r[i].start = A[i*2].key;
-		A_r[i].end =  A[i*2 + 1].key;
-	}
-	//qsort(A_r, A_size, sizeof(struct interval), compare_interval_by_start);
-
-	for (i = 0; i < B_size; i++) {
-		B_r[i].start = B[i*2].key;
-		B_r[i].end = B[i*2 + 1].key;
-	}
-	//qsort(B_r, B_size, sizeof(struct interval), compare_interval_by_start);
-
-	int c = 0;
-	for (i = 0; i < A_size; i++) {
-		// Search for the left-most interval in B with the start in A
-		int lo = -1, hi = B_size, mid;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_r[mid].start < A_r[i].start ) 
-				lo = mid;
-			else
-				hi = mid;
-
-		}
-
-		int left = hi;
-		// Small hack to make our property hold
-		if ( B_r[hi].start == A_r[i].start)
-			left++;
-
-		lo = -1;
-		hi = B_size;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_r[mid].start < A_r[i].end ) 
-				lo = mid;
-			else
-				hi = mid;
-		}
-
-
-
-		int right = hi;
-		//printf("%d\t%d\t%d\t%d\n", A_r[i].start, A_r[i].end, right, left);
-		if ( B_r[hi].start == A_r[i].end)
-			right++;
-
-
-		int k;
-
-		c += (right - left) + 
-				( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
-
-	}
-
-	c = count_intersections_bsearch(A_r, A_size, B_r, B_size);
-
+	int c = count_intersections_bsearch(
+			A_start, A_len, A_size,
+			B_start, B_len, B_size);
 
 	printf("%d\n",c);
 
