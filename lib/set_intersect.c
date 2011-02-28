@@ -53,7 +53,7 @@ int count_intersections_bsearch( unsigned int *A_start,
 
 		int right = hi;
 
-		//printf("i:%d\tl:%d\tr:%d\n", i, left, right);
+		printf("i:%d\tl:%d\tr:%d\n", i, left, right);
 
 		/* This is the way to save the intersecting pairs
 		*/
@@ -62,34 +62,33 @@ int count_intersections_bsearch( unsigned int *A_start,
 		int first_hit = 0;
 		if ( ( A_start[i] == B_start[left] ) ) {
 
-			/*
 			printf("%d (%u,%u)\t%d (%u,%u) -\n",
 					i, A_start[i], A_start[i] + A_len[i],
 					left, B_start[left], B_start[left] + B_len[left]);
-			*/
 			++c;
 			first_hit = 1;
 
 		} else if ( A_start[i] <= B_start[left - 1] + B_len[left - 1] )  {
-			/*
 			printf("%d (%u,%u)\t%d (%u,%u) -\n",
 					i, A_start[i], A_start[i] + A_len[i],
 					left - 1, B_start[left - 1], 
 							  B_start[left - 1] + B_len[left - 1]);
-			*/
 			++c;
 		}
 
 		// Check to see if the end is in an interval
 		int k;
 		for (k = left + first_hit; k <= right; k++) {
-			if (A_start[i] + A_len[i] >= B_start[k] + B_len[k]) {
-				/*
+			if ( (A_start[i] + A_len[i] >= B_start[k]) ) {
 				printf("%d (%u,%u)\t%d (%u,%u) +\n",
 						i, A_start[i], A_start[i] + A_len[i],
 						k, B_start[k], B_start[k] + B_len[k]);
-				*/
 				++c;
+			} else {
+				printf("%d (%u,%u)\t%d (%u,%u) ~\n",
+						i, A_start[i], A_start[i] + A_len[i],
+						k, B_start[k], B_start[k] + B_len[k]);
+
 			}
 		}
 		//c += (right - left) + 
