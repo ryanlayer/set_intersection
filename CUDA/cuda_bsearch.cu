@@ -7,8 +7,6 @@
 
 
 #include "bed.h"
-//#include "rand_model.h"
-//#include "order.h"
 #include "set_intersect.h"
 #include "radixsort.h"
 #include "gpu.hpp"
@@ -16,9 +14,30 @@
 
 #include "order_kernel.cu"
 
-#include "reduction.h"
-
-//extern void set_ranks(int *val_d, int size);
+void set_start_len( struct bed_line *U_array,
+					int U_size,
+					struct bed_line *A_array,
+					unsigned int *A_key_h,
+					unsigned int *A_val_h,
+					int A_size )
+{
+	int i, j, k = 0;
+	for (i = 0; i < A_size; i++) {
+		int start = -1, offset = -1;
+		for (j = 0; j < U_size; j++) {
+			if ( ( U_array[j].chr == A_array[i].chr) &&
+				 ( U_array[j].start <= A_array[i].end) &&
+				 ( U_array[j].end >= A_array[i].start) ) {
+				start = U_array[j].start;
+				offset = U_array[j].offset;
+				break;
+			}
+		}
+		A_key_h[k] = A_array[i].start - start + offset;
+		A_val_h[k] = A_array[i].end -A_array[i].start;
+		++k;
+	}
+}
 
 int main(int argc, char *argv[]) {
 	//struct timeval t0_start, t0_end, t1_start, t1_end, t2_start, t2_end;
@@ -67,12 +86,6 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A, &A_array, chrom_num);
 	B_size = chr_array_from_list(B, &B_array, chrom_num);
 
-	/*
-	unsigned int *AB_key_h = (unsigned int *) malloc( 
-			(A_size + B_size) * sizeof(unsigned int));
-	unsigned int *AB_val_h = (unsigned int *) malloc( 
-			(A_size + B_size) * sizeof(unsigned int));
-	*/
 	unsigned int *A_key_h = 
 		(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
 	unsigned int *A_val_h = 
@@ -122,13 +135,7 @@ int main(int argc, char *argv[]) {
 		++k;
 	}
 
-	unsigned int *A_key_d, *A_val_d;
-	unsigned int *B_key_d, *B_val_d;
-	//unsigned int *AB_key_d, *AB_val_d;
-	//cudaMalloc((void **)&A_key_d, (2*A_size)*sizeof(int));
-	//cudaMalloc((void **)&A_val_d, (2*A_size)*sizeof(int));
-	//cudaMalloc((void **)&B_key_d, (B_size)*sizeof(int));
-	//cudaMalloc((void **)&B_val_d, (B_size)*sizeof(int));
+	unsigned int *A_key_d, *A_val_d, *B_key_d, *B_val_d;
 	cudaMalloc((void **)&A_key_d, (A_size)*sizeof(unsigned int));
 	cudaMalloc((void **)&A_val_d, (A_size)*sizeof(unsigned int));
 	cudaMalloc((void **)&B_key_d, (B_size)*sizeof(unsigned int));
@@ -138,19 +145,17 @@ int main(int argc, char *argv[]) {
 			cudaMemcpyHostToDevice);
 	cudaMemcpy(A_val_d, A_val_h, (A_size) * sizeof(unsigned int),
 			cudaMemcpyHostToDevice);
-
 	cudaMemcpy(B_key_d, B_key_h, (B_size) * sizeof(unsigned int), 
 			cudaMemcpyHostToDevice);
 	cudaMemcpy(B_val_d, B_val_h, (B_size) * sizeof(unsigned int),
 			cudaMemcpyHostToDevice);
 
-
 	nvRadixSort::RadixSort radixsortA(A_size, false);
-	nvRadixSort::RadixSort radixsortB(B_size, false);
 
 	radixsortA.sort((unsigned int*)A_key_d, (unsigned int*)A_val_d, 
 			A_size, 32);
-	
+
+	nvRadixSort::RadixSort radixsortB(B_size, false);
 
 	radixsortB.sort((unsigned int*)B_key_d, (unsigned int*)B_val_d, 
 			B_size, 32);
@@ -162,51 +167,50 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Rand A: %s.\n", cudaGetErrorString( err) );
 
 
-	/*
-	cudaMemcpy(A_key_h, A_key_d, A_size * sizeof(unsigned int), 
-			cudaMemcpyDeviceToHost);
-	cudaMemcpy(A_val_h, A_val_d, A_size * sizeof(unsigned int),
-			cudaMemcpyDeviceToHost);
-
-	cudaMemcpy(B_key_h, B_key_d, B_size * sizeof(unsigned int), 
-			cudaMemcpyDeviceToHost);
-	cudaMemcpy(B_val_h, B_val_d, B_size * sizeof(unsigned int),
-			cudaMemcpyDeviceToHost);
-
-	for (i = 0; (i < A_size) && (i < B_size); i++)
-			printf("%d,%d\t%d,%d\n", 
-				A_key_h[i], A_val_h[i],
-				B_key_h[i], B_val_h[i]);
-	*/
-
 	int blocksize = 256;
 	dim3 dimBlock(blocksize);
 	// I want a thread per element in A
 	dim3 dimGridA( ceil(float(A_size)/float(dimBlock.x)));
 
-	int *R_di, *R_h, *R_do;
-	cudaMalloc((void **)&R_di, (A_size)*sizeof(int));
-	cudaMalloc((void **)&R_do, (A_size)*sizeof(int));
-	R_h = (int *) malloc( (B_size) * sizeof(int));
+	int *R_d;
+	cudaMalloc((void **)&R_d, (A_size)*sizeof(int));
 
 	// *_key_d holds the start position, and *_val_d holds the length,
 	// the end position is *_key_d + *_val_d
 	intersection_b_search <<<dimGridA, dimBlock>>> (
 			A_key_d, A_val_d, A_size,
 			B_key_d, B_val_d, B_size,
-			R_di);
+			R_d);
 
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
-		fprintf(stderr, "Rand A: %s.\n", cudaGetErrorString( err) );
+		fprintf(stderr, "intersect search: %s.\n", cudaGetErrorString( err) );
 
-	//reduce<int>(A_size, A_size, 
+	// Sum the result vector to find the total number of intersections
+	unsigned int left = A_size;
+	int n = 1024;
+	while (left > 1) {
 
-	cudaMemcpy(R_h, R_di, A_size * sizeof(int), cudaMemcpyDeviceToHost);
+		dim3 dimGridR( left / (blocksize * n) + 1);
+		//dim3 dimGridR( left / blocksize  + 1);
+		dim3 dimBlockR( blocksize );
+		size_t sm_size = dimBlockR.x * sizeof(int); 
 
-	for (i = 0; i < A_size; i++)
-		printf("%d\n", R_h[i]);
+		my_reduce <<<dimGridR, dimBlockR, sm_size>>> (R_d, left, n);
+
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "My Reduce0: %s.\n", cudaGetErrorString( err) );
+
+		left = dimGridR.x;
+	}
+
+	int x;
+	cudaMemcpy(&x, R_d, 1 * sizeof(int), cudaMemcpyDeviceToHost);
+
+	printf("%d\n", x);
 
 
 	// set the ranks for the two sets at the same time we will store the size
