@@ -77,7 +77,7 @@ void set_ranks_lens(int *vald, int *keyd, int *lend, int size)
 }
 
 __global__
-void normalize_rand(int *setd, int max, int size)
+void normalize_rand(unsigned int *setd, unsigned int max, int size)
 {
 	int id = (blockIdx.x * blockDim.x) + threadIdx.x;
 
