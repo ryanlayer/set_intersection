@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
 	set_start_len( U_array, U_size,
 				   B_array, B_key_h, B_val_h, B_size );
 
+
 	// Move A and B to deviceB
 	unsigned int *A_key_d, *A_val_d, *B_key_d, *B_val_d;
 	cudaMalloc((void **)&A_key_d, (A_size)*sizeof(unsigned int));
@@ -165,9 +166,21 @@ int main(int argc, char *argv[]) {
 	nvRadixSort::RadixSort radixsortB(B_size, false);
 	radixsortB.sort((unsigned int*)B_key_d, (unsigned int*)B_val_d, 
 			B_size, 32);
+	cudaThreadSynchronize();
 	stop();
 
-	cudaThreadSynchronize();
+	/*
+	cudaMemcpy(A_key_h, A_key_d, (A_size) * sizeof(unsigned int), 
+			cudaMemcpyDeviceToHost);
+	cudaMemcpy(B_key_h, B_key_d, (B_size) * sizeof(unsigned int), 
+			cudaMemcpyDeviceToHost);
+	int z;
+	for (z = 0; z < A_size; z++)
+		printf("A\t%d\t%u\n", z, A_key_h[z]);
+	for (z = 0; z < B_size; z++)
+		printf("B\t%d\t%u\n", z, B_key_h[z]);
+	*/
+
 	unsigned long sort_time = report();
 
 	cudaError_t err;
@@ -179,28 +192,44 @@ int main(int argc, char *argv[]) {
 	int block_size = 256;
 	dim3 dimBlock(block_size);
 
-	// I want a thread per element in A
-	dim3 dimGridA( ceil(float(A_size)/float(dimBlock.x)));
-
 	// R will hold the results of the intersection, for each interval A[i],
 	// R[i] will be the number of intervals in B that A[i] intersects,
-	int *R_d;
-	cudaMalloc((void **)&R_d, (A_size)*sizeof(int));
+	unsigned int *R_d;
+	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
 
 	// *_key_d holds the start position, and *_val_d holds the length,
 	// the end position is *_key_d + *_val_d
-	start();
-	intersection_b_search <<<dimGridA, dimBlock>>> (
-			A_key_d, A_val_d, A_size,
-			B_key_d, B_val_d, B_size,
-			R_d);
+	//
+	// Each thread will search |reps| items in A, we will keep the blocksize
+	// fixed at 256, but we will need to adjust the grid size 
+	dim3 dimGridSearch( A_size / (block_size * reps) + 1);
 
-	cudaThreadSynchronize();
+	intersection_b_search <<<dimGridSearch, 
+								dimBlock >>> ( A_key_d, A_val_d, A_size,
+											   B_key_d, B_val_d, B_size,
+											   R_d, reps);
+
+	intersection_b_search_sm <<<dimGridSearch, 
+								dimBlock,
+								2000 * sizeof(int)>>> ( 
+										A_key_d, A_val_d, A_size,
+										B_key_d, B_val_d, B_size,
+										R_d, reps);
+
+
+
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
 		fprintf(stderr, "intersect search: %s.\n", cudaGetErrorString( err) );
-	stop();
 	unsigned long search_time = report();
+
+	/*
+	unsigned int *R_h = (unsigned int *) malloc( (A_size) * sizeof(unsigned int));
+	cudaMemcpy(R_h, R_d, A_size * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+	int i;
+	for (i = 0; i < A_size; i++)
+		printf("%u\n", R_h[i]);
 
 	int n = 1024;
 	start();
@@ -215,7 +244,7 @@ int main(int argc, char *argv[]) {
 	stop();
 	unsigned long memdown_time = report();
 
-	//printf("O: %d\n", x);
+	printf("O: %d\n", x);
 	printf("size:%d,%d\tup:%ld\tsort:%ld\tsearch:%ld\tsum:%ld\tdown:%ld"
 			"\tcomp:%ld\ttotal:%ld\n",
 			A_size, B_size,
@@ -225,6 +254,7 @@ int main(int argc, char *argv[]) {
 
 	cudaFree(A_key_d);
 	cudaFree(B_key_d);
+	*/
 
 	return 0;
 }

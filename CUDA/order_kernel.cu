@@ -1,69 +1,191 @@
 #ifndef __ORDER_KERNEL_H__
 #define __ORDER_KERNEL_H__
 
-__global__
-void intersection_b_search(
-		unsigned int *A_start, unsigned int *A_len, int A_size,
-		unsigned int *B_start, unsigned int *B_len, int B_size,
-		int *R)
+//{{{__device__ int __min(int a, int b) {
+__device__
+int __min(int a, int b) 
 {
-	int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (a < b)
+		return a;
+	else
+		return b;
+}
+//}}}
 
-	if (id < A_size) {
-		//R[id] = 0;
+//{{{__device__ int binary_search(int *db, int size_db, int s) {
+__device__
+int binary_search( unsigned int *db,
+				   int size_db, 
+				   unsigned int s) 
+{
+	int lo = -1, hi = size_db, mid;
+	while ( hi - lo > 1) {
+		mid = (hi + lo) / 2;
 
-		unsigned int start = A_start[id];
-		unsigned int end = start + A_len[id];
-
-		int lo = -1, hi = B_size, mid;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_start[mid] < start )
-				lo = mid;
-			else
-				hi = mid;
-		}
-
-		int left = hi;
-
-		lo = -1;
-		hi = B_size;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_start[mid] < end )
-				lo = mid;
-			else
-				hi = mid;
-		}
-
-		int right = hi;
-
-		int range_start, range_end;
-
-		/* v1 */
-		if ( A_start[id] == B_start[left] )
-			range_start = left;
-		else if ( (left > 0) &&
-				  ( A_start[id] <= B_start[left - 1] + B_len[left - 1] ) )
-			range_start = left - 1;
-		else 
-			range_start = left;
-
-		if ( ( right < B_size ) &&  
-			 ( A_start[id] + A_len[id] == B_start[right] ) ) 
-			range_end = right;
+		if ( db[mid] < s )
+			lo = mid;
 		else
-			range_end = right - 1;
+			hi = mid;
+	}
+	return hi;
+}
+//}}}
 
-		R[id] = range_end - range_start + 1;
-		/*
-		R[id] = (right - left) + ( (left > 0) && 
-				(start < (B_start[left - 1] + B_len[left - 1]) ) );
-		*/
+//{{{ __global__ void intersection_b_search_sm ( unsigned int *A_start,
+/*
+ *   We want each thread to take an element in A
+ *   Need to load the portion of B that contains all elements searched by A
+ *   It is possible that the portion of B need will not fit into A.  In that
+ *   case we must split A in half, and re-run on two pieces.
+ */
+__global__
+void intersection_b_search_sm ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *R,
+							 int n )
+{
+	extern __shared__ unsigned int S_start[];
+	__shared__ int db_min;
+	__shared__ int db_max;
+
+
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	R[id] = 0;
+
+	if (threadIdx.x == 0) 
+		db_min = binary_search(B_start, B_size, A_start[id]);
+
+	if (threadIdx.x == 32)
+		db_max = binary_search(B_start, B_size, 
+				A_start[  __min(blockIdx.x * blockDim.x + blockDim.x - 1, 
+								A_size - 1) ] +
+				A_len[  __min(blockIdx.x * blockDim.x + blockDim.x - 1, 
+								A_size - 1) ] );
+				
+	__syncthreads();
+
+	int S_size = db_max - db_min + 1 + 2;//exapnd the region by one in each direction
+	
+	if (db_min > 0)
+		db_min--;
+
+	/*
+	if (threadIdx.x == 0) 
+		R[blockIdx.x] = db_max;
+	*/
+	
+
+	/* 
+	 * the number of elements from db_d that need to be moved into SM is equal
+	 * to db_max - db_min.  If this is smaller than blockDim.x, then threads
+	 * will have to move more than one element over 
+	 */
+
+	int num_moved = 0;
+	while ( threadIdx.x + (num_moved * blockDim.x) <=  S_size ) {
+		S_start[ threadIdx.x + (num_moved * blockDim.x) ] =
+				B_start[db_min + threadIdx.x + (num_moved * blockDim.x)];
+		num_moved++;
+	}
+	__syncthreads();
+
+
+	unsigned int i = id;
+	unsigned int grid_size = blockDim.x * gridDim.x;
+
+	while ( i < (n * grid_size) ) {
+
+		if (i < A_size) {
+			//R[id] = 0;
+
+			unsigned int start = A_start[i];
+			unsigned int end = start + A_len[i];
+
+			int left = binary_search(S_start, S_size, start);
+
+			int right = binary_search(S_start, S_size, end);
+
+			int range_start, range_end;
+
+			if ( start == S_start[left] )
+				range_start = left;
+			else if ( (left > 0) &&
+					  ( start <= 
+						S_start[left - 1] + B_len[db_min + left - 1] ) )
+				range_start = left - 1;
+			else 
+				range_start = left;
+
+			if ( ( right < S_size ) &&  
+				 ( end == S_start[right] ) ) 
+				range_end = right;
+			else
+				range_end = right - 1;
+
+			R[i] = range_end - range_start + 1;
+		}
+		i += grid_size;
 	}
 }
+//}}}
+
+//{{{ __global__ void intersection_b_search ( unsigned int *A_start,
+__global__
+void intersection_b_search ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *R,
+							 int n )
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	unsigned int i = id;
+	unsigned int grid_size = blockDim.x * gridDim.x;
+
+	//R[i] = blockIdx.x;
+	while ( i < (n * grid_size) ) {
+
+		if (i < A_size) {
+			//R[id] = 0;
+
+			unsigned int start = A_start[i];
+			unsigned int end = start + A_len[i];
+
+			int left = binary_search(B_start, B_size, start);
+
+			int right = binary_search(B_start, B_size, end);
+
+			int range_start, range_end;
+
+			if ( A_start[i] == B_start[left] )
+				range_start = left;
+			else if ( (left > 0) &&
+					  ( A_start[i] <= B_start[left - 1] + B_len[left - 1] ) )
+				range_start = left - 1;
+			else 
+				range_start = left;
+
+			if ( ( right < B_size ) &&  
+				 ( A_start[i] + A_len[i] == B_start[right] ) ) 
+				range_end = right;
+			else
+				range_end = right - 1;
+
+			R[i] = range_end - range_start + 1;
+		}
+		i += grid_size;
+	}
+}
+//}}}
+
+//{{{ __global__ void set_ranks_lens(int *vald, int *keyd, int *lend, int size)
 __global__
 void set_ranks_lens(int *vald, int *keyd, int *lend, int size)
 {
@@ -75,7 +197,9 @@ void set_ranks_lens(int *vald, int *keyd, int *lend, int size)
 	if (id < size)
 		lend[id] = keyd[id*2 + 1] - keyd[id*2];
 }
+//}}}
 
+//{{{ __global__ void normalize_rand(unsigned int *setd, unsigned int max, int
 __global__
 void normalize_rand(unsigned int *setd, unsigned int max, int size)
 {
@@ -84,7 +208,9 @@ void normalize_rand(unsigned int *setd, unsigned int max, int size)
 	if (id < (size)) 
 		setd[id] = setd[id] % max;
 }
+//}}}
 
+//{{{ __global__ void test_pairs (int *A, int *B, int *A_len, int *B_len, int
 __global__
 void test_pairs (int *A, int *B, int *A_len, int *B_len, int *pairs_d, int *R, int size) {
 	int id = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -101,7 +227,9 @@ void test_pairs (int *A, int *B, int *A_len, int *B_len, int *pairs_d, int *R, i
 		R[id] += (A_start <= B_end) && (A_end >= B_start);
 	}
 }
+//}}}
 
+//{{{__global__ void my_reduce( int *gdata,
 __global__
 void my_reduce( int *gdata,
 				unsigned int size,
@@ -222,5 +350,6 @@ void my_reduce( int *gdata,
 	if (tid == 0)
 		gdata[blockIdx.x] = sdata[0];
 }
+//}}}
 
 #endif
