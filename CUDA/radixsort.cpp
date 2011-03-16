@@ -121,3 +121,5 @@ void computeNumCTAs(KernelPointer kernel, int smemDynamicBytes, bool bManualCoal
 }
 
 } // namespace nvRadixSort
+
+

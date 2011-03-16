@@ -5,6 +5,7 @@
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
+#include "../lib/timer.h"
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
@@ -53,7 +54,6 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
-
 	// make one large array to hold these
 	/* 
 	 * We need to put both A and B into a single array then sort it
@@ -63,7 +63,6 @@ int main(int argc, char *argv[]) {
 	 *   sample:  A (0) or B (1)
 	 *   type:  start (0) or  end (1)
 	 *   rank: order within
-	 *
 	 */
 	struct triple *AB = (struct triple *)
 			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
@@ -71,12 +70,19 @@ int main(int argc, char *argv[]) {
 	struct triple *A = AB;
 	struct triple *B = AB + 2*A_size;
 
+
 	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
 
+
 	// sort A and B so they can be ranked
+	start();
+
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+
+	stop();
+	unsigned long sort_time = report();
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
@@ -89,9 +95,9 @@ int main(int argc, char *argv[]) {
 			B_size * sizeof(unsigned int));
 
 	// Set sized
-	for (i = 0; i < 2*A_size; i++)
+	for (i = 0; i < A_size; i++)
 		A_start[i] = A[i*2].key;
-	for (i = 0; i < 2*B_size; i++) 
+	for (i = 0; i < B_size; i++) 
 		B_start[i] = B[i*2].key;
 
 	// Get lengthsrank = i/2;
@@ -100,11 +106,20 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
+	start();
+
 	int c = count_intersections_bsearch(
 			A_start, A_len, A_size,
 			B_start, B_len, B_size);
 
-	printf("%d\n",c);
+	stop();
+	unsigned long search_time = report();
+
+	//printf("%d\n",c);
+	printf("size:%d,%d\tsort:%ld\tsearch:%ld\ttotal:%ld\n", 
+			A_size, B_size,
+			sort_time, search_time,
+			sort_time + search_time);
 
 	return 0;
 }

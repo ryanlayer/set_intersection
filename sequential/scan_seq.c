@@ -97,9 +97,9 @@ int main(int argc, char *argv[]) {
 			B_size * sizeof(unsigned int));
 
 	// Set sized
-	for (i = 0; i < 2*A_size; i++)
+	for (i = 0; i < A_size; i++)
 		A_start[i] = A[i*2].key;
-	for (i = 0; i < 2*B_size; i++) 
+	for (i = 0; i < B_size; i++) 
 		B_start[i] = B[i*2].key;
 
 	// Get lengthsrank = i/2;

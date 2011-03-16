@@ -16,6 +16,35 @@ int compare_ints (const void *a, const void *b) {
 	return *a_i - *b_i;
 }
 
+
+//{{{ void set_start_len( struct bed_line *U_array,
+void set_start_len( struct bed_line *U_array,
+					int U_size,
+					struct bed_line *A_array,
+					unsigned int *A_key_h,
+					unsigned int *A_val_h,
+					int A_size )
+{
+	int i, j, k = 0;
+	for (i = 0; i < A_size; i++) {
+		int start = -1, offset = -1;
+		for (j = 0; j < U_size; j++) {
+			if ( ( U_array[j].chr == A_array[i].chr) &&
+				 ( U_array[j].start <= A_array[i].end) &&
+				 ( U_array[j].end >= A_array[i].start) ) {
+
+				start = U_array[j].start;
+				offset = U_array[j].offset;
+				break;
+			}
+		}
+		A_key_h[k] = A_array[i].start - start + offset;
+		A_val_h[k] = A_array[i].end -A_array[i].start;
+		++k;
+	}
+}
+//}}}
+
 //{{{ int count_intersections_bsearch( struct interval *A_r,
 int count_intersections_bsearch( unsigned int *A_start,
 								 unsigned int *A_len,
@@ -53,47 +82,68 @@ int count_intersections_bsearch( unsigned int *A_start,
 
 		int right = hi;
 
-		printf("i:%d\tl:%d\tr:%d\n", i, left, right);
+		//printf("i:%d\tl:%d\tr:%d\n", i, left, right);
 
 		/* This is the way to save the intersecting pairs
-		*/
 
 		// Check to see if the start is in an interval
 		int first_hit = 0;
 		if ( ( A_start[i] == B_start[left] ) ) {
 
-			printf("%d (%u,%u)\t%d (%u,%u) -\n",
-					i, A_start[i], A_start[i] + A_len[i],
-					left, B_start[left], B_start[left] + B_len[left]);
 			++c;
+
+			printf("%d (%u,%u)\t%d (%u,%u) %d\n",
+					i, A_start[i], A_start[i] + A_len[i],
+					left, B_start[left], B_start[left] + B_len[left],
+					c);
 			first_hit = 1;
 
-		} else if ( A_start[i] <= B_start[left - 1] + B_len[left - 1] )  {
-			printf("%d (%u,%u)\t%d (%u,%u) -\n",
+		} else if ( ( left > 0 ) && 
+					(A_start[i] <= B_start[left - 1] + B_len[left - 1] ))   {
+			++c;
+
+			printf("%d (%u,%u)\t%d (%u,%u) %d\n",
 					i, A_start[i], A_start[i] + A_len[i],
 					left - 1, B_start[left - 1], 
-							  B_start[left - 1] + B_len[left - 1]);
-			++c;
+					B_start[left - 1] + B_len[left - 1],
+					c);
 		}
 
 		// Check to see if the end is in an interval
 		int k;
-		for (k = left + first_hit; k <= right; k++) {
-			if ( (A_start[i] + A_len[i] >= B_start[k]) ) {
-				printf("%d (%u,%u)\t%d (%u,%u) +\n",
-						i, A_start[i], A_start[i] + A_len[i],
-						k, B_start[k], B_start[k] + B_len[k]);
+		for (k = left + first_hit; (k <= right) && (k < B_size); k++) {
+			if ( (A_start[i] + A_len[i] >= B_start[k]) ) 
 				++c;
-			} else {
-				printf("%d (%u,%u)\t%d (%u,%u) ~\n",
+
+				printf("%d (%u,%u)\t%d (%u,%u) %d\n",
 						i, A_start[i], A_start[i] + A_len[i],
-						k, B_start[k], B_start[k] + B_len[k]);
-
-			}
+						k, B_start[k], B_start[k] + B_len[k],
+						c);
 		}
-		//c += (right - left) + 
-				//( (left > 0)  && (A_r[i].start < B_r[left - 1].end) );
+		*/
 
+		/* v1
+		*/
+		int range_start, range_end;
+
+		if ( ( A_start[i] == B_start[left] ) ) {
+			range_start = left;
+		} else if ( ( left > 0 ) &&
+					( A_start[i] <= B_start[left - 1] + B_len[left - 1]) ) {
+			range_start = left - 1;
+		} else {
+			range_start = left;
+		}
+
+
+		if ( (right < B_size) &&
+			 ( A_start[i] + A_len[i] == B_start[right] ) ) {
+			range_end = right;
+		} else {
+			range_end = right - 1;
+		} 
+
+		c += range_end - range_start + 1;
 	}
 
 	return c;
@@ -118,7 +168,8 @@ int count_intersections_scan( unsigned int *A,
 
 	int o = 0;
 
-	while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
+	//while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
+	while ( (curr_A < A_size ) || (curr_B < B_size ) ) {
 
 		// The current values depend on if we are in or not in a segment
 		if ( inA )
@@ -180,11 +231,9 @@ int count_intersections_scan( unsigned int *A,
 		}
 
 		if (inA && inB)  {
-			/*
 			printf("%d (%u,%u)\t%d (%u,%u)\n", 
 					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
 					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
-			*/
 			++o;
 		}
 	}

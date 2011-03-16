@@ -7,6 +7,13 @@ struct triple {
 	unsigned int key, sample, type, rank;
 };
 
+void set_start_len( struct bed_line *U_array,
+					int U_size,
+					struct bed_line *A_array,
+					unsigned int *A_key_h,
+					unsigned int *A_val_h,
+					int A_size );
+
 int compare_triple_lists (const void *a, const void *b);
 
 int compare_ints (const void *a, const void *b);

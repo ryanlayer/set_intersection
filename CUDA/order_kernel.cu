@@ -12,6 +12,7 @@ int __min(int a, int b)
 }
 //}}}
 
+
 //{{{__device__ int binary_search(int *db, int size_db, int s) {
 __device__
 int binary_search( unsigned int *db,
@@ -28,6 +29,35 @@ int binary_search( unsigned int *db,
 			hi = mid;
 	}
 	return hi;
+}
+//}}}
+
+//{{{ __global__ void intersection_b_search_sm_2 ( unsigned int *A_start,
+__global__
+void intersection_b_search_sm_2 ( unsigned int *A_start,
+								  unsigned int *A_len,
+								  int A_size,
+								  unsigned int *B_start,
+								  unsigned int *B_len,
+								  int B_size,
+								  unsigned int *R,
+								  int N )
+{
+	extern __shared__ unsigned int S[];
+	//__shared__ int db_min;
+	//__shared__ int db_max;
+	
+	// Move N elements into shared memory
+	int start = blockDim.x * N;
+	int num_moved = 0;
+	while ( ( threadIdx.x + (num_moved * blockDim.x) <=  N ) &&
+			( start + threadIdx.x + (num_moved * blockDim.x) < B_size) ) {
+		S[ threadIdx.x + (num_moved * blockDim.x) ] =
+				B_start[start + threadIdx.x + (num_moved * blockDim.x)];
+		num_moved++;
+	}
+	__syncthreads();
+
 }
 //}}}
 
@@ -68,16 +98,11 @@ void intersection_b_search_sm ( unsigned int *A_start,
 				
 	__syncthreads();
 
-	int S_size = db_max - db_min + 1 + 2;//exapnd the region by one in each direction
+	//exapnd the region by one in each direction
+	int S_size = db_max - db_min + 1 + 2;
 	
 	if (db_min > 0)
 		db_min--;
-
-	/*
-	if (threadIdx.x == 0) 
-		R[blockIdx.x] = db_max;
-	*/
-	
 
 	/* 
 	 * the number of elements from db_d that need to be moved into SM is equal
@@ -231,7 +256,7 @@ void test_pairs (int *A, int *B, int *A_len, int *B_len, int *pairs_d, int *R, i
 
 //{{{__global__ void my_reduce( int *gdata,
 __global__
-void my_reduce( int *gdata,
+void my_reduce( unsigned int *gdata,
 				unsigned int size,
 				unsigned int n )
 {
