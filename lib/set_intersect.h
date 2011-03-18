@@ -16,7 +16,7 @@ void set_start_len( struct bed_line *U_array,
 
 int compare_triple_lists (const void *a, const void *b);
 
-int compare_ints (const void *a, const void *b);
+int compare_uints (const void *a, const void *b);
 
 int count_intersections_bsearch( unsigned int *A_start,
 								 unsigned int *A_len,

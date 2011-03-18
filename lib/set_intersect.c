@@ -10,12 +10,11 @@ int compare_triple_lists (const void *a, const void *b) {
 	return a_i->key - b_i->key;
 }
 
-int compare_ints (const void *a, const void *b) {
+int compare_uints (const void *a, const void *b) {
 	unsigned int *a_i = (unsigned int *)a;
 	unsigned int *b_i = (unsigned int *)b;
 	return *a_i - *b_i;
 }
-
 
 //{{{ void set_start_len( struct bed_line *U_array,
 void set_start_len( struct bed_line *U_array,
@@ -231,9 +230,11 @@ int count_intersections_scan( unsigned int *A,
 		}
 
 		if (inA && inB)  {
+			/*
 			printf("%d (%u,%u)\t%d (%u,%u)\n", 
 					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
 					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
+			*/
 			++o;
 		}
 	}

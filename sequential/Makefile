@@ -9,17 +9,21 @@ EXECS=order_seq bsearch_seq get_rank_pairs get_maped_intervals \
 
 BED_FILE_OBJS=../lib/bed.o
 SET_FILE_OBJS=../lib/set_intersect.o
-TIMER_FILE_OBJS=../lib/timer.o
+TIMER_OBJS=../lib/timer.o
+MT_OBJS=../lib/mt.o
 
-OBJS=$(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_FILE_OBJS)
+OBJS=$(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS) $(MT_OBJS)
 
 all: $(EXECS)
 
-bsearch_seq: bsearch_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_FILE_OBJS)
-	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_FILE_OBJS)
+bsearch_seq: bsearch_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS)
+	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS)
 
 scan_seq: scan_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+
+num_sim_scan_seq: num_sim_scan_seq.o $(OBJS) 
+	$(CC) -o $@  $< $(OBJS)
 
 brute_force: brute_force.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
