@@ -1,19 +1,27 @@
 #include "../lib/bed.h"
 
-struct triple {
+struct triple
+{
 	unsigned int key, sample, type, rank;
 };
 
-int compare_triple_lists (const void *a, const void *b) {
+int compare_triple_lists (const void *a, const void *b)
+{
 	struct triple *a_i = (struct triple *)a;
 	struct triple *b_i = (struct triple *)b;
 	return a_i->key - b_i->key;
 }
 
-int compare_uints (const void *a, const void *b) {
+int compare_uints (const void *a, const void *b)
+{
 	unsigned int *a_i = (unsigned int *)a;
 	unsigned int *b_i = (unsigned int *)b;
-	return *a_i - *b_i;
+	if (*a_i < *b_i)
+		return -1;
+	else if (*a_i > *b_i)
+		return 1;
+	else
+		return 0;
 }
 
 //{{{ void set_start_len( struct bed_line *U_array,
@@ -170,6 +178,8 @@ int count_intersections_scan( unsigned int *A,
 	//while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
 	while ( (curr_A < A_size ) || (curr_B < B_size ) ) {
 
+		//fprintf(stderr, "a:%d %d\tb:%d %d\n", curr_A, A_size, curr_B, B_size);
+
 		// The current values depend on if we are in or not in a segment
 		if ( inA )
 			A_val = A[curr_A] + A_len[curr_A];
@@ -181,7 +191,8 @@ int count_intersections_scan( unsigned int *A,
 		else
 			B_val = B[curr_B];
 
-		if ( (curr_A < A_size - 1 ) && (curr_B < B_size - 1 ) ) {
+		//if ( (curr_A < A_size - 1 ) && (curr_B < B_size - 1 ) ) {
+		if ( (curr_A < A_size ) && (curr_B < B_size ) ) {
 
 			// Move the pointer
 			if ( A_val < B_val ) {
@@ -219,11 +230,11 @@ int count_intersections_scan( unsigned int *A,
 					inB = !inB;
 				}
 			}
-		} else if (curr_A < A_size - 1 ) {
+		} else if (curr_A < A_size ) {
 			if (inA)
 				++curr_A;
 			inA = !inA;
-		} else if (curr_B < B_size - 1 ) {
+		} else if (curr_B < B_size ) {
 			if (inB)
 				++curr_B;
 			inB = !inB;
@@ -234,7 +245,7 @@ int count_intersections_scan( unsigned int *A,
 			printf("%d (%u,%u)\t%d (%u,%u)\n", 
 					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
 					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
-			*/
+					*/
 			++o;
 		}
 	}

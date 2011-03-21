@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	printf(".");
 	int chrom_num = 24;
 
 	/***********************REPLACE WITH INPUT FILE************************/	
@@ -31,7 +30,6 @@ int main(int argc, char *argv[]) {
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
 	int reps = atoi(argv[4]);
 
-	printf(".");
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
 	   (chr_list_from_bed_file(&A_list, chrom_names, chrom_num, A_file) == 1) ||
@@ -41,19 +39,19 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	printf(".");
 
 	int max = add_offsets(U_list, chrom_num);
 
-	printf(".");
 
 	if (max == 0) {
 		fprintf(stderr, "Max is zero.\n");
 		return 1;
 	}
 
+
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
+
 
 	int i;
 
@@ -84,15 +82,12 @@ int main(int argc, char *argv[]) {
 	struct triple *A = AB;
 	struct triple *B = AB + 2*A_size;
 
-	printf(".");
 	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
-	printf(".");
 
 	// sort A and B so they can be ranked
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
-	printf(".");
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
@@ -116,34 +111,36 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
+
 	int O = count_intersections_scan(
 			A_start, A_len, A_size,
 			B_start, B_len, B_size );
 
-	printf(".");
-	printf("%d\n", O);
-
-
 	init_genrand((unsigned) time(NULL));
 
-	int j;
-	for (j = 0; i < reps; i++) {
-		for (i = 0; i < A_size; i++)
-			A_start[i] = genrand_int32();
-		for (i = 0; i < B_size; i++) 
-			B_start[i] = genrand_int32();
+	int j, x = 0;
+	for (j = 0; j < reps; j++) {
 
-		qsort(A, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B, B_size, sizeof(unsigned int), compare_uints);
+		for (i = 0; i < A_size; i++)
+			A_start[i] = genrand_int32() % max;
+		for (i = 0; i < B_size; i++) 
+			B_start[i] = genrand_int32() % max;
+
+		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
+		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
 
 		int r = count_intersections_scan(
 				A_start, A_len, A_size,
 				B_start, B_len, B_size );
 
-		printf("%d\t%d\n", O, r);
+		//fprintf(stderr, "%d\t%d\n", O, r);
+		if (r >= O)
+			++x;
 	}
 
+	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
 
+	printf("O:%d\tp:%f\n", O, p);
 	return 0;
 
 }
