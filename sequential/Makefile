@@ -25,6 +25,9 @@ scan_seq: scan_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 num_sim_scan_seq: num_sim_scan_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
+num_sim_bsearch_seq: num_sim_bsearch_seq.o $(OBJS) 
+	$(CC) -o $@  $< $(OBJS)
+
 brute_force: brute_force.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
