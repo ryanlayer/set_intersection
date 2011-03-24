@@ -6,6 +6,7 @@
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
 #include "../lib/mt.h"
+#include "../lib/timer.h"
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
@@ -118,20 +119,36 @@ int main(int argc, char *argv[]) {
 
 	init_genrand((unsigned) time(NULL));
 
+	unsigned long rand_total_time = 0,
+				  sort_total_time = 0,
+				  intersect_total_time = 0;
+
 	int j, x = 0;
 	for (j = 0; j < reps; j++) {
 
+		start();
 		for (i = 0; i < A_size; i++)
 			A_start[i] = genrand_int32() % max;
 		for (i = 0; i < B_size; i++) 
 			B_start[i] = genrand_int32() % max;
+		stop();
+		//printf("r:%ld\t", report());
+		rand_total_time += report();
 
+		start();
 		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
 		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
+		stop();
+		//printf("s:%ld\t", report());
+		sort_total_time += report();
 
+		start();
 		int r = count_intersections_scan(
 				A_start, A_len, A_size,
 				B_start, B_len, B_size );
+		stop();
+		//printf("i:%ld\t", report());
+		intersect_total_time += report();
 
 		//fprintf(stderr, "%d\t%d\n", O, r);
 		if (r >= O)
@@ -139,8 +156,25 @@ int main(int argc, char *argv[]) {
 	}
 
 	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
+	fprintf(stderr, "O:%d\tp:%f\n", O, p);
 
-	printf("O:%d\tp:%f\n", O, p);
+	double  rand_avg_time = ( (double) rand_total_time) / reps,
+			sort_avg_time = ( (double) sort_total_time) / reps,
+			intersect_avg_time = ( (double)  intersect_total_time) / reps;
+
+	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
+
+	double  rand_prop_time = rand_avg_time/total_avg_time,
+			sort_prop_time = sort_avg_time/total_avg_time,
+			intersect_prop_time = intersect_avg_time/total_avg_time;
+
+	printf("t:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+			total_avg_time,
+			rand_avg_time, rand_prop_time,
+			sort_avg_time, sort_prop_time,
+			intersect_avg_time, intersect_prop_time);
+
+
 	return 0;
 
 }

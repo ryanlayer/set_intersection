@@ -12,70 +12,8 @@
 #include "random.hpp"
 #include "../lib/timer.h"
 
-#include "order_kernel.cu"
-
-/*
-//{{{void set_start_len( struct bed_line *U_array,
-void set_start_len( struct bed_line *U_array,
-					int U_size,
-					struct bed_line *A_array,
-					unsigned int *A_key_h,
-					unsigned int *A_val_h,
-					int A_size )
-{
-	int i, j, k = 0;
-	for (i = 0; i < A_size; i++) {
-		int start = -1, offset = -1;
-		for (j = 0; j < U_size; j++) {
-			if ( ( U_array[j].chr == A_array[i].chr) &&
-				 ( U_array[j].start <= A_array[i].end) &&
-				 ( U_array[j].end >= A_array[i].start) ) {
-				start = U_array[j].start;
-				offset = U_array[j].offset;
-				break;
-			}
-		}
-		A_key_h[k] = A_array[i].start - start + offset;
-		A_val_h[k] = A_array[i].end -A_array[i].start;
-		++k;
-	}
-}
-//}}}
-*/
-
-//{{{void parallel_sum( int *R_d,
-/**
- * @param R_d Address of element array on device
- * @param block_size Number of threads per block
- * @param Rd_size Number of elemens in R_d
- * @param n Number of elemens each thread handles
- */
-void parallel_sum( unsigned int *R_d,
-				   int block_size,
-				   int Rd_size,
-				   int n)
-{
-	unsigned int left = Rd_size;
-	//int n = 1024;
-	while (left > 1) {
-
-		dim3 dimGridR( left / (block_size * n) + 1);
-		//dim3 dimGridR( left / blocksize  + 1);
-		dim3 dimBlockR( block_size );
-		size_t sm_size = dimBlockR.x * sizeof(int); 
-
-		my_reduce <<<dimGridR, dimBlockR, sm_size>>> (R_d, left, n);
-
-		cudaThreadSynchronize();
-		cudaError_t err;
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "My Reduce0: %s.\n", cudaGetErrorString( err) );
-
-		left = dimGridR.x;
-	}
-}
-//}}}
+//#include "order_kernel.cu"
+#include "set_intersect_cuda.h"
 
 int main(int argc, char *argv[]) {
 
@@ -164,20 +102,6 @@ int main(int argc, char *argv[]) {
 
 	unsigned long memup_time = report();
 
-
-	/*
-	cudaMemcpy(A_key_h, A_key_d, (A_size) * sizeof(unsigned int), 
-			cudaMemcpyDeviceToHost);
-	cudaMemcpy(B_key_h, B_key_d, (B_size) * sizeof(unsigned int), 
-			cudaMemcpyDeviceToHost);
-	int z;
-	for (z = 0; z < A_size; z++)
-		printf("A\t%d\t%u\n", z, A_key_h[z]);
-	for (z = 0; z < B_size; z++)
-		printf("B\t%d\t%u\n", z, B_key_h[z]);
-	*/
-
-
 	int block_size = 256;
 	dim3 dimBlock(block_size);
 
@@ -192,7 +116,6 @@ int main(int argc, char *argv[]) {
 	// Each thread will search |reps| items in A, we will keep the blocksize
 	// fixed at 256, but we will need to adjust the grid size 
 	
-	//dim3 dimGridSearch( A_size / (block_size * reps) + 1);
 	dim3 dimGridSearch( ( A_size + 1) / (block_size * reps));
 
 	cudaError_t err;
@@ -207,10 +130,14 @@ int main(int argc, char *argv[]) {
 
 		cudaThreadSynchronize();
 		stop();
-		printf("GM\t%ld\n", report());
+		printf("GM\t%ld\t", report());
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "GM search: %s.\n", cudaGetErrorString( err) );
+		parallel_sum( R_d, block_size, A_size, 100 );
+		unsigned int x;
+		cudaMemcpy(&x, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+		printf("%ld\n", x);
 	}
 
 	start();
@@ -238,10 +165,15 @@ int main(int argc, char *argv[]) {
 
 		cudaThreadSynchronize();
 		stop();
-		printf("SM\t%ld\n", report());
+		printf("SM\t%ld\t", report());
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "SM search: %s.\n", cudaGetErrorString( err) );
+		parallel_sum( R_d, block_size, A_size, 100 );
+		unsigned int x;
+		cudaMemcpy(&x, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+		printf("%ld\n", x);
+
 	}
 
 	// Move a big block of B then search a range of A
