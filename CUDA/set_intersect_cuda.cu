@@ -370,6 +370,66 @@ void intersection_b_search ( unsigned int *A_start,
 }
 //}}}
 
+//{{{ __global__ void enumerate_b_search_gm ( unsigned int *A_start,
+__global__
+void enumerate_b_search_gm ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *P1,
+							 unsigned int *P2,
+							 int n )
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	unsigned int i = id;
+	unsigned int grid_size = blockDim.x * gridDim.x;
+
+	//R[i] = blockIdx.x;
+	while ( i < (n * grid_size) ) {
+
+		if (i < A_size) {
+			//R[id] = 0;
+
+			unsigned int start = A_start[i];
+			unsigned int end = start + A_len[i];
+
+			int left = binary_search(B_start, B_size, start);
+
+			int right = binary_search(B_start, B_size, end);
+
+			int range_start, range_end;
+
+			if ( A_start[i] == B_start[left] )
+				range_start = left;
+			else if ( (left > 0) &&
+					  ( A_start[i] <= B_start[left - 1] + B_len[left - 1] ) )
+				range_start = left - 1;
+			else 
+				range_start = left;
+
+			if ( ( right < B_size ) &&  
+				 ( A_start[i] + A_len[i] == B_start[right] ) ) 
+				range_end = right;
+			else
+				range_end = right - 1;
+
+			//R[i] = range_end - range_start + 1;
+			int j;
+			for (j = range_start; j <= range_end; j++) {
+				//  This is at worst, the i + j pair
+				P1[i + j] = i;
+				P2[i + j] = j;
+			}
+
+		}
+		i += grid_size;
+	}
+}
+//}}}
+
 //{{{ __global__ void set_ranks_lens(int *vald, int *keyd, int *lend, int size)
 __global__
 void set_ranks_lens( int *vald,

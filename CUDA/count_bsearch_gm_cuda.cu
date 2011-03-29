@@ -16,15 +16,17 @@
 
 int main(int argc, char *argv[]) {
 
-	cudaFree(NULL);
 
 	if (argc < 6) {
-		fprintf(stderr, "usage: order <u> <a> <b> <reps> <inter N> <sum N>\n"
-						"e.g., order U.bed A.bed B.bed 10000 1 1024\n");
+		fprintf(stderr, "usage: order <u> <a> <b> "
+				"<reps> <inter N> <sum N> <device>\n"
+				"e.g., order U.bed A.bed B.bed 10000 1 1024 1\n");
 		return 1;
 	}
 
 	int chrom_num = 24;
+
+	CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[7] ) ) );
 
 	/***********************REPLACE WITH INPUT FILE************************/	
 	char *chrom_names[] = {
@@ -100,15 +102,14 @@ int main(int argc, char *argv[]) {
 			cudaMemcpyHostToDevice);
 	stop();
 
-	unsigned long memup_time = report();
-
-	int block_size = 256;
-	dim3 dimBlock(block_size);
-
 	// R will hold the results of the intersection, for each interval A[i],
 	// R[i] will be the number of intervals in B that A[i] intersects,
 	unsigned int *R_d;
 	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
+	unsigned long memup_time = report();
+
+	int block_size = 256;
+	dim3 dimBlock(block_size);
 
 	// *_key_d holds the start position, and *_val_d holds the length,
 	// the end position is *_key_d + *_val_d
@@ -132,6 +133,7 @@ int main(int argc, char *argv[]) {
 			B_size, 32);
 	cudaThreadSynchronize();
 	stop();
+	unsigned long sort_time = report();
 
 	unsigned int *R_h = (unsigned int *) malloc( A_size * sizeof(unsigned int));
 
@@ -140,16 +142,19 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
 
 	start();
-	intersection_b_search_sm <<< dimGridSearch, 
-								 dimBlock,
-								 2000 * sizeof(unsigned int)
-								>>> ( A_key_d, A_val_d, A_size,
+	intersection_b_search <<<dimGridSearch, 
+							dimBlock >>> ( A_key_d, A_val_d, A_size,
 										   B_key_d, B_val_d, B_size,
-										   R_d, inter_threads);
+										   R_d, 1);
 
 	cudaThreadSynchronize();
+	stop();
+	unsigned long search_time = report();
+
+	start();
 	parallel_sum(R_d, block_size, A_size, sum_threads);
 	stop();
+	unsigned long sum_time = report();
 
 
 	unsigned int O;
@@ -158,130 +163,24 @@ int main(int argc, char *argv[]) {
 	stop();
 	unsigned long memdown_time = report();
 
+	unsigned long total = memup_time + sort_time +
+			search_time + sum_time + memdown_time;
 
-	cudaFree(A_key_d);
-	cudaFree(B_key_d);
+	fprintf(stderr,"O:%d\n", O);
 
-	srand(time(NULL));	
-
-	RNG_rand48 A_r(rand());
-	RNG_rand48 B_r(rand());
-	dim3 dimGridAR( ceil(float(A_size)/float(dimBlock.x)));
-	dim3 dimGridBR( ceil(float(B_size)/float(dimBlock.x)));
-	nvRadixSort::RadixSort radixsortAR(A_size, true);
-	nvRadixSort::RadixSort radixsortBR(B_size, true);
-
-	int i,r = 0;
-	unsigned int R;
-	unsigned int *A_r_d, *B_r_d;
-
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
-
-	for  (i = 0; i < reps; i ++) {
-		start();
-		A_r.generate(A_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Rand A: %s.\n", cudaGetErrorString( err) );
-
-
-		B_r.generate(B_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Rand B: %s.\n", cudaGetErrorString( err) );
-
-		A_r_d = (unsigned int *)A_r.get_random_numbers();
-		B_r_d = (unsigned int *)B_r.get_random_numbers();
-
-		normalize_rand <<<dimGridAR, dimBlock>>> (A_r_d, max, A_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Norm A: %s.\n", cudaGetErrorString( err) );
-
-		normalize_rand <<<dimGridBR, dimBlock>>> (B_r_d, max, B_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Norm B: %s.\n", cudaGetErrorString( err) );
-		stop();
-		//printf("r:%ld\t", report());
-		rand_total_time += report();
-
-		start();
-		radixsortAR.sort((unsigned int*)A_r_d, 0, A_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort A: %s.\n", cudaGetErrorString( err) );
-
-		radixsortBR.sort((unsigned int*)B_r_d, 0, B_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort B: %s.\n", cudaGetErrorString( err) );
-		stop();
-		//printf("s:%ld\t", report());
-		sort_total_time += report();
-
-		intersection_b_search_sm <<< dimGridSearch, 
-								 dimBlock,
-								 2000 * sizeof(unsigned int)
-									>>> ( A_key_d, A_val_d, A_size,
-										   B_key_d, B_val_d, B_size,
-										   R_d, inter_threads);
-
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "intersect search: %s.\n", 
-					cudaGetErrorString(err) );
-
-		start();
-		parallel_sum( R_d, block_size, A_size, sum_threads);
-
-		cudaMemcpy(&R, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-		stop();
-		//printf("i:%ld\t", report());
-		intersect_total_time += report();
-
-		//printf("%ld\n", R);
-		
-		if (R >= O)
-			++r;
-	}
-
-
-	double p = ( (double)(r + 1) ) / ( (double)(reps + 1) );
-	fprintf(stderr,"O:%d\tp:%f\n", O, p);
-
-	double  rand_avg_time = ( (double) rand_total_time) / reps,
-			sort_avg_time = ( (double) sort_total_time) / reps,
-			intersect_avg_time = ( (double)  intersect_total_time) / reps;
-
-	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
-
-	double  rand_prop_time = rand_avg_time/total_avg_time,
-			sort_prop_time = sort_avg_time/total_avg_time,
-			intersect_prop_time = intersect_avg_time/total_avg_time;
-
-	printf("t:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
-			total_avg_time,
-			rand_avg_time, rand_prop_time,
-			sort_avg_time, sort_prop_time,
-			intersect_avg_time, intersect_prop_time);
-
+	printf( "t:%ld\t"
+			"up:%ld,%G\t"
+			"sort:%ld,%G\t"
+			"search:%ld,%G\t"
+			"sum:%ld,%G\t"
+			"down:%ld,%G\n",
+			total,
+			memup_time, (double)memup_time / (double)total,
+			sort_time, (double)sort_time / (double)total,
+			search_time, (double)search_time / (double)total,
+			sum_time, (double)sum_time / (double)total,
+			memdown_time, (double)memdown_time / (double)total
+		  );
 
 	cudaFree(A_key_d);
 	cudaFree(B_key_d);

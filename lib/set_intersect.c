@@ -157,6 +157,119 @@ int count_intersections_bsearch( unsigned int *A_start,
 }
 // }}}
 
+//{{{ int enumerate_intersections_bsearch( struct interval *A_r,
+int enumerate_intersections_bsearch( unsigned int *A_start,
+								 unsigned int *A_len,
+								 int A_size,
+								 unsigned int *B_start,
+								 unsigned int *B_len,
+								 int B_size,
+								 unsigned int *pairs)
+{
+	int i, c = 0;
+	for (i = 0; i < A_size; i++) {
+		// Search for the left-most interval in B with the start in A
+		int lo = -1, hi = B_size, mid;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_start[mid] < A_start[i] ) 
+				lo = mid;
+			else
+				hi = mid;
+
+		}
+
+		int left = hi;
+
+		lo = -1;
+		hi = B_size;
+		while ( hi - lo > 1) {
+			mid = (hi + lo) / 2;
+
+			if ( B_start[mid] < (A_start[i] + A_len[i]) ) 
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		int right = hi;
+
+		//printf("i:%d\tl:%d\tr:%d\n", i, left, right);
+
+		/* This is the way to save the intersecting pairs
+
+		// Check to see if the start is in an interval
+		int first_hit = 0;
+		if ( ( A_start[i] == B_start[left] ) ) {
+
+			++c;
+
+			printf("%d (%u,%u)\t%d (%u,%u) %d\n",
+					i, A_start[i], A_start[i] + A_len[i],
+					left, B_start[left], B_start[left] + B_len[left],
+					c);
+			first_hit = 1;
+
+		} else if ( ( left > 0 ) && 
+					(A_start[i] <= B_start[left - 1] + B_len[left - 1] ))   {
+			++c;
+
+			printf("%d (%u,%u)\t%d (%u,%u) %d\n",
+					i, A_start[i], A_start[i] + A_len[i],
+					left - 1, B_start[left - 1], 
+					B_start[left - 1] + B_len[left - 1],
+					c);
+		}
+
+		// Check to see if the end is in an interval
+		int k;
+		for (k = left + first_hit; (k <= right) && (k < B_size); k++) {
+			if ( (A_start[i] + A_len[i] >= B_start[k]) ) 
+				++c;
+
+				printf("%d (%u,%u)\t%d (%u,%u) %d\n",
+						i, A_start[i], A_start[i] + A_len[i],
+						k, B_start[k], B_start[k] + B_len[k],
+						c);
+		}
+		*/
+
+		/* v1
+		*/
+		int range_start, range_end;
+
+		if ( ( A_start[i] == B_start[left] ) ) {
+			range_start = left;
+		} else if ( ( left > 0 ) &&
+					( A_start[i] <= B_start[left - 1] + B_len[left - 1]) ) {
+			range_start = left - 1;
+		} else {
+			range_start = left;
+		}
+
+
+		if ( (right < B_size) &&
+			 ( A_start[i] + A_len[i] == B_start[right] ) ) {
+			range_end = right;
+		} else {
+			range_end = right - 1;
+		} 
+
+		//c += range_end - range_start + 1;
+
+		int j;
+		for (j = range_start; j <= range_end; j++) {
+			pairs[2*c] = i;
+			pairs[2*c+1] = j;
+			++c;
+		}
+	}
+
+	return c;
+}
+// }}}
+
 //{{{ int count_intersections_scan( int *A, 
 /*
  * Scan two sorted lists counting overlaps

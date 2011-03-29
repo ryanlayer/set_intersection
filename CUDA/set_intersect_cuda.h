@@ -44,6 +44,18 @@ void intersection_b_search ( unsigned int *A_start,
 							 int B_size,
 							 unsigned int *R,
 							 int n );
+
+__global__
+void enumerate_b_search_gm ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *P1,
+							 unsigned int *P2,
+							 int n );
+
 __global__
 void set_ranks_lens( int *vald,
 					 int *keyd,

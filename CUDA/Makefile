@@ -34,7 +34,10 @@ SRC= $(SET_FILE_SRC) $(TIMER_FILE_SRC) $(BED_FILE_SRC)
 EXECS=cuda_bsearch \
 	  test_cuda \
 	  num_sim_bsearch_gm_cuda \
-	  num_sim_bsearch_sm_cuda
+	  num_sim_bsearch_sm_cuda \
+	  count_bsearch_gm_cuda \
+	  enumerate_bsearch_gm_cuda \
+	  count_bsearch_sm_cuda
 
 .SUFFIXES: .c .cpp .cu .o
 
@@ -64,6 +67,48 @@ num_sim_bsearch_gm_cuda: radixsort.cu.o \
 		radixsort.o \
 		set_intersect_cuda.cu.o \
 		num_sim_bsearch_gm_cuda.cu.o \
+		$(LFLAGS_B)
+
+count_bsearch_gm_cuda: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  count_bsearch_gm_cuda.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o \
+		count_bsearch_gm_cuda.cu.o \
+		$(LFLAGS_B)
+
+count_bsearch_sm_cuda: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  count_bsearch_sm_cuda.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o \
+		count_bsearch_sm_cuda.cu.o \
+		$(LFLAGS_B)
+
+enumerate_bsearch_gm_cuda: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  enumerate_bsearch_gm_cuda.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o \
+		enumerate_bsearch_gm_cuda.cu.o \
 		$(LFLAGS_B)
 
 num_sim_bsearch_sm_cuda: radixsort.cu.o \
