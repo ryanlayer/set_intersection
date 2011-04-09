@@ -168,11 +168,15 @@ int main(int argc, char *argv[]) {
 			sort_prop_time = sort_avg_time/total_avg_time,
 			intersect_prop_time = intersect_avg_time/total_avg_time;
 
-	printf("t:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+			A_size,
+			B_size,
+			A_size + B_size,
 			total_avg_time,
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
+
 
 
 	return 0;
