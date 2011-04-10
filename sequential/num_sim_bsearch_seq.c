@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	fprintf(stderr,"O:%d\tp:%f\n", O, p);
+	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
 
 	double  rand_avg_time = ( (double) rand_total_time) / reps,
 			sort_avg_time = ( (double) sort_total_time) / reps,
