@@ -1,6 +1,6 @@
 CC=gcc
 AR=ar
-CFLAGS= -Wall -g -O3 
+CFLAGS= -fopenmp -Wall -g -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
 LDFLAGS= -lgsl -lgslcblas -lm 
 
@@ -29,6 +29,9 @@ enumerate_bsearch_omp: enumerate_bsearch_omp.o $(OBJS)
 	$(CC) -o $@  $< $(OBJS)
 
 ../lib/set_intersect_omp.o: ../lib/set_intersect_omp.c
+	$(CC) -fopenmp -c $(CFLAGS) $< -o $@
+
+count_bsearch_omp.0: count_bsearch_omp.c 
 	$(CC) -fopenmp -c $(CFLAGS) $< -o $@
 
 %.o: %.cpp

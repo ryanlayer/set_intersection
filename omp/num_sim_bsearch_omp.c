@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <omp.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -11,8 +12,8 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
-	if (argc < 4) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
+	if (argc < 5) {
+		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N> <p>\n");
 		return 1;
 	}
 
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
 	int reps = atoi(argv[4]);
+	int p = atoi(argv[5]);
 
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
@@ -119,44 +121,55 @@ int main(int argc, char *argv[]) {
 
 	init_genrand((unsigned) time(NULL));
 
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
+	int j = 0;
 
-	int j, x = 0;
+	omp_set_num_threads(p);
+
+	int *x = (int *) calloc(p, sizeof(int) );
+
+	#pragma omp parallel for 
 	for (j = 0; j < reps; j++) {
 
-		start();
-		for (i = 0; i < A_size; i++)
-			A_start[i] = genrand_int32() % max;
-		for (i = 0; i < B_size; i++) 
-			B_start[i] = genrand_int32() % max;
-		stop();
+
+		unsigned int *A_rand = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+		unsigned int *B_rand = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
+
+
+		//start();
+		int k;
+		for (k = 0; k < A_size; k++)
+			A_rand[k] = genrand_int32() % max;
+		for (k = 0; k < B_size; k++) 
+			B_rand[k] = genrand_int32() % max;
+		//stop();
 		//printf("r:%ld\t", report());
-		rand_total_time += report();
+		//rand_total_time += report();
 
-		start();
-		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
-		stop();
+		//start();
+		qsort(A_rand, A_size, sizeof(unsigned int), compare_uints);
+		qsort(B_rand, B_size, sizeof(unsigned int), compare_uints);
+		//stop();
 		//printf("s:%ld\t", report());
-		sort_total_time += report();
+		//sort_total_time += report();
 
-		start();
+		//start();
 		int r = count_intersections_bsearch(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-		stop();
+				A_rand, A_len, A_size,
+				B_rand, B_len, B_size );
+		//stop();
 		//printf("i:%ld\t", report());
-		intersect_total_time += report();
+		//intersect_total_time += report();
 
 		if (r >= O)
-			++x;
+			x[p] = x[p] + 1;		
 	}
 
-	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	fprintf(stderr,"O:%d\tp:%f\n", O, p);
+	//double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
+	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
 
+	/*
 	double  rand_avg_time = ( (double) rand_total_time) / reps,
 			sort_avg_time = ( (double) sort_total_time) / reps,
 			intersect_avg_time = ( (double)  intersect_total_time) / reps;
@@ -172,6 +185,7 @@ int main(int argc, char *argv[]) {
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
+			*/
 
 	return 0;
 
