@@ -20,7 +20,8 @@ int count_intersections_bsearch_omp( unsigned int *A_start,
 
 	#pragma omp parallel for
 	for (i = 0; i < A_size; i++) {
-		//printf("id\t%d\n", omp_get_thread_num());
+		int t_id = omp_get_thread_num();
+
 		// Search for the left-most interval in B with the start in A
 		int lo = -1, hi = B_size, mid;
 		while ( hi - lo > 1) {
@@ -67,7 +68,10 @@ int count_intersections_bsearch_omp( unsigned int *A_start,
 			range_end = right - 1;
 		} 
 
-		c[p] += range_end - range_start + 1;
+
+
+		c[t_id] += range_end - range_start + 1;
+
 	}
 
 	int t_c = 0;
@@ -77,3 +81,4 @@ int count_intersections_bsearch_omp( unsigned int *A_start,
 	return t_c;
 }
 // }}}
+
