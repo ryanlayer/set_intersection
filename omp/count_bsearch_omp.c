@@ -116,23 +116,30 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < B_size; i++)
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
-
-	start();
-	int O = count_intersections_bsearch_omp(
+	int s_O = count_intersections_bsearch(
 			A_start, A_len, A_size,
-			B_start, B_len, B_size,p);
-	stop();
-	unsigned long count_seq = report();
+			B_start, B_len, B_size);
+	
 
-	unsigned long total = sort_seq + count_seq;
+	for (p = 1; p <= 10; p ++) {
+		start();
+		int O = count_intersections_bsearch_omp(
+				A_start, A_len, A_size,
+				B_start, B_len, B_size, 3);
+		stop();
+		printf("o:%d,%d\tp:%d\tt:%ld\n", s_O, O, p, report());
+	}
+	//unsigned long count_seq = report();
+
+	//unsigned long total = sort_seq + count_seq;
 
 
-	fprintf(stderr,"O:%d\n", O);
-	printf("t:%ld\tsort:%ld,%G\tsearch:%ld,%G\n",
-			total,
-			sort_seq, (double)sort_seq / (double)total,
-			count_seq, (double)count_seq / (double)total
-	  );
+	//fprintf(stderr,"O:%d\n", O);
+	//printf("t:%ld\tsort:%ld,%G\tsearch:%ld,%G\n",
+			//total,
+			//sort_seq, (double)sort_seq / (double)total,
+			//count_seq, (double)count_seq / (double)total
+	  //);
 
 
 	return 0;

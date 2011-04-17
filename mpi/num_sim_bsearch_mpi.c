@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <mpi.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -11,10 +12,17 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
-	if (argc < 4) {
+	if (argc < 5) {
 		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
 		return 1;
 	}
+
+	MPI_Status status;
+	int rank, size;
+
+	MPI_Init (&argc, &argv);    /* starts MPI */
+	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
+	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
 
 	int chrom_num = 24;
 
@@ -113,69 +121,71 @@ int main(int argc, char *argv[]) {
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
 
-	int O = count_intersections_bsearch(
+	unsigned int O = count_intersections_bsearch(
 			A_start, A_len, A_size,
 			B_start, B_len, B_size );
 
-	init_genrand((unsigned) time(NULL));
+	init_genrand((unsigned) time(NULL) + rank);
 
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
+	int x = 0, j;
 
-	int j, x = 0;
-	for (j = 0; j < reps; j++) {
+	unsigned int *A_rand = (unsigned int *) malloc(
+			A_size * sizeof(unsigned int));
+	unsigned int *B_rand = (unsigned int *) malloc(
+			B_size * sizeof(unsigned int));
 
-		start();
-		for (i = 0; i < A_size; i++)
-			A_start[i] = genrand_int32() % max;
-		for (i = 0; i < B_size; i++) 
-			B_start[i] = genrand_int32() % max;
-		stop();
+	for (j = 0; j < (reps / size) + 1; j++) {
+		//start();
+		int k;
+		for (k = 0; k < A_size; k++)
+			A_rand[k] = genrand_int32() % max;
+		for (k = 0; k < B_size; k++) 
+			B_rand[k] = genrand_int32() % max;
+		//stop();
 		//printf("r:%ld\t", report());
-		rand_total_time += report();
+		//rand_total_time += report();
 
-		start();
-		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
-		stop();
+		//start();
+		qsort(A_rand, A_size, sizeof(unsigned int), compare_uints);
+		qsort(B_rand, B_size, sizeof(unsigned int), compare_uints);
+		//stop();
 		//printf("s:%ld\t", report());
-		sort_total_time += report();
+		//sort_total_time += report();
 
-		start();
-		int r = count_intersections_bsearch(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-		stop();
+		//start();
+		unsigned int r = count_intersections_bsearch(
+				A_rand, A_len, A_size,
+				B_rand, B_len, B_size );
+		//stop();
+
 		//printf("i:%ld\t", report());
-		intersect_total_time += report();
+		//intersect_total_time += report();
+		//
+		//printf("i:%d\tr:%u\n", rank, r);
 
 		if (r >= O)
 			++x;
 	}
 
-	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
+	if (rank == 0) {
+		int seen = 0, buf;
+		printf("%d\tgot:%u\tfrom:%d\n", rank, x, rank);
+		while (seen < (size - 1)) {
+			MPI_Recv(&buf, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 0,
+			MPI_COMM_WORLD, &status);
+			++seen;
+			x += buf;
+			printf("%d\tgot:%u\tfrom:%d\t%d\n", rank, buf, status.MPI_SOURCE,
+					x);
+		}
 
-	double  rand_avg_time = ( (double) rand_total_time) / reps,
-			sort_avg_time = ( (double) sort_total_time) / reps,
-			intersect_avg_time = ( (double)  intersect_total_time) / reps;
+		double p = ((double)x + 1) / ((double)reps + 1);
+		printf("O:%d\tp:%f\n", O, p);
+	} else {
+		MPI_Send(&x, 1, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
+	}
 
-	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
-
-	double  rand_prop_time = rand_avg_time/total_avg_time,
-			sort_prop_time = sort_avg_time/total_avg_time,
-			intersect_prop_time = intersect_avg_time/total_avg_time;
-
-	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
-			A_size,
-			B_size,
-			A_size + B_size,
-			total_avg_time,
-			rand_avg_time, rand_prop_time,
-			sort_avg_time, sort_prop_time,
-			intersect_avg_time, intersect_prop_time);
+	MPI_Finalize();
 
 	return 0;
-
 }

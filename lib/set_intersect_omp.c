@@ -1,5 +1,7 @@
 #include <omp.h>
 #include <stdio.h>
+#include <stdlib.h>
+
 
 //{{{ int count_intersections_bsearch_omp( struct interval *A_r,
 int count_intersections_bsearch_omp( unsigned int *A_start,
@@ -10,15 +12,16 @@ int count_intersections_bsearch_omp( unsigned int *A_start,
 								 int B_size,
 								 int p)
 {
-	int i, c = 0;
+	int i;
+	int *c = (int *) calloc(p, sizeof(int) );
 
 	omp_set_num_threads(p);
 
-#pragma omp parallel for
 
-
+	#pragma omp parallel for
 	for (i = 0; i < A_size; i++) {
-		//printf("id\t%d\n", omp_get_thread_num());
+		int t_id = omp_get_thread_num();
+
 		// Search for the left-most interval in B with the start in A
 		int lo = -1, hi = B_size, mid;
 		while ( hi - lo > 1) {
@@ -65,9 +68,17 @@ int count_intersections_bsearch_omp( unsigned int *A_start,
 			range_end = right - 1;
 		} 
 
-		c += range_end - range_start + 1;
+
+
+		c[t_id] += range_end - range_start + 1;
+
 	}
 
-	return c;
+	int t_c = 0;
+	for (i = 0; i < p; i++)
+		t_c += c[i];
+
+	return t_c;
 }
 // }}}
+
