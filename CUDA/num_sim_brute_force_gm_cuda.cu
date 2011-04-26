@@ -86,13 +86,13 @@ int main(int argc, char *argv[]) {
 				   B_array, B_key_h, B_val_h, B_size );
 
 	// Move A and B to deviceB
+	start();
 	unsigned int *A_key_d, *A_val_d, *B_key_d, *B_val_d;
 	cudaMalloc((void **)&A_key_d, (A_size)*sizeof(unsigned int));
 	cudaMalloc((void **)&A_val_d, (A_size)*sizeof(unsigned int));
 	cudaMalloc((void **)&B_key_d, (B_size)*sizeof(unsigned int));
 	cudaMalloc((void **)&B_val_d, (B_size)*sizeof(unsigned int));
 
-	start();
 	cudaMemcpy(A_key_d, A_key_h, (A_size) * sizeof(unsigned int), 
 			cudaMemcpyHostToDevice);
 	cudaMemcpy(A_val_d, A_val_h, (A_size) * sizeof(unsigned int),
@@ -101,17 +101,15 @@ int main(int argc, char *argv[]) {
 			cudaMemcpyHostToDevice);
 	cudaMemcpy(B_val_d, B_val_h, (B_size) * sizeof(unsigned int),
 			cudaMemcpyHostToDevice);
-	stop();
 
-	unsigned long memup_time = report();
+	unsigned int *R_d;
+	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
 
 	int block_size = 256;
 	dim3 dimBlock(block_size);
 
 	// R will hold the results of the intersection, for each interval A[i],
 	// R[i] will be the number of intervals in B that A[i] intersects,
-	unsigned int *R_d;
-	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
 
 	// *_key_d holds the start position, and *_val_d holds the length,
 	// the end position is *_key_d + *_val_d
@@ -134,7 +132,6 @@ int main(int argc, char *argv[]) {
 	radixsortB.sort((unsigned int*)B_key_d, (unsigned int*)B_val_d, 
 			B_size, 32);
 	cudaThreadSynchronize();
-	stop();
 
 	unsigned int *R_h = (unsigned int *) malloc( A_size * sizeof(unsigned int));
 
@@ -142,23 +139,17 @@ int main(int argc, char *argv[]) {
 	if(err != cudaSuccess)
 		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
 
-	start();
 	intersection_b_search <<<dimGridSearch, 
 							dimBlock >>> ( A_key_d, A_val_d, A_size,
 										   B_key_d, B_val_d, B_size,
 										   R_d, 1);
 
 	cudaThreadSynchronize();
-	stop();
 
 	parallel_sum(R_d, block_size, A_size, sum_threads);
 
-
 	unsigned int O;
-	start();
 	cudaMemcpy(&O, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-	stop();
-	unsigned long memdown_time = report();
 
 
 	cudaFree(A_key_d);
@@ -180,6 +171,8 @@ int main(int argc, char *argv[]) {
 	unsigned long rand_total_time = 0,
 				  sort_total_time = 0,
 				  intersect_total_time = 0;
+	stop();
+	unsigned long setup_time = report();
 
 	for  (i = 0; i < reps; i ++) {
 		start();
@@ -236,10 +229,10 @@ int main(int argc, char *argv[]) {
 		//printf("s:%ld\t", report());
 		sort_total_time += report();
 
-		intersection_b_search <<<dimGridSearch, 
+		intersection_brute_force <<<dimGridSearch, 
 							dimBlock >>> ( A_r_d, A_val_d, A_size,
 										   B_r_d, B_val_d, B_size,
-										   R_d, inter_threads);
+										   R_d);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
@@ -252,11 +245,8 @@ int main(int argc, char *argv[]) {
 
 		cudaMemcpy(&R, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
 		stop();
-		//printf("i:%ld\t", report());
 		intersect_total_time += report();
 
-		//printf("%u\n", R);
-		
 		if (R >= O)
 			++r;
 	}
@@ -270,6 +260,9 @@ int main(int argc, char *argv[]) {
 			intersect_avg_time = ( (double)  intersect_total_time) / reps;
 
 	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
+	double total_time = rand_total_time +
+			sort_total_time + 
+			intersect_total_time;
 
 	double  rand_prop_time = rand_avg_time/total_avg_time,
 			sort_prop_time = sort_avg_time/total_avg_time,
@@ -283,20 +276,22 @@ int main(int argc, char *argv[]) {
 			intersect_avg_time, intersect_prop_time);
 	*/
 
-	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+	printf("%d,%d,%d\tT:%G\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\tu:%G\n", 
 			A_size,
 			B_size,
 			A_size + B_size,
+			total_time,
 			total_avg_time,
 			rand_avg_time,
 			rand_prop_time,
 			sort_avg_time,
 			sort_prop_time,
 			intersect_avg_time,
-			intersect_prop_time);
+			intersect_prop_time,
+			setup_time);
 
-	cudaFree(A_key_d);
-	cudaFree(B_key_d);
+	cudaFree(A_val_d);
+	cudaFree(B_val_d);
 	cudaFree(R_d);
 
 	return 0;

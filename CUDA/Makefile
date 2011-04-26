@@ -28,8 +28,9 @@ OBJS= $(SET_FILE_OBJS) $(TIMER_FILE_OBJS) $(BED_FILE_OBJS)
 SET_FILE_SRC=../lib/set_intersect.c
 TIMER_FILE_SRC=../lib/timer.c
 BED_FILE_SRC=../lib/bed.c
+MT_SRC=../lib/mt.c
 
-SRC= $(SET_FILE_SRC) $(TIMER_FILE_SRC) $(BED_FILE_SRC)
+SRC= $(SET_FILE_SRC) $(TIMER_FILE_SRC) $(BED_FILE_SRC) $(MT_SRC)
 
 EXECS=cuda_bsearch \
 	  test_cuda \
@@ -37,7 +38,9 @@ EXECS=cuda_bsearch \
 	  num_sim_bsearch_sm_cuda \
 	  count_bsearch_gm_cuda \
 	  enumerate_bsearch_gm_cuda \
-	  count_bsearch_sm_cuda
+	  count_bsearch_sm_cuda \
+	  num_sim_brute_force_gm_cuda\
+	  num_sim_test
 
 .SUFFIXES: .c .cpp .cu .o
 
@@ -67,6 +70,35 @@ num_sim_bsearch_gm_cuda: radixsort.cu.o \
 		radixsort.o \
 		set_intersect_cuda.cu.o \
 		num_sim_bsearch_gm_cuda.cu.o \
+		$(LFLAGS_B)
+
+
+num_sim_test: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  num_sim_test.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o \
+	    num_sim_test.cu.o \
+		$(LFLAGS_B)
+
+num_sim_brute_force_gm_cuda: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  num_sim_brute_force_gm_cuda.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o \
+	  	num_sim_brute_force_gm_cuda.cu.o \
 		$(LFLAGS_B)
 
 count_bsearch_gm_cuda: radixsort.cu.o \

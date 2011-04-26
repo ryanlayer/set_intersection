@@ -2,11 +2,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <cuda.h>
+#include <cutil.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
 #include "../lib/mt.h"
 #include "../lib/timer.h"
+#include "set_intersect_cuda.h"
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
@@ -17,6 +20,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	int chrom_num = 24;
+	fprintf(stderr, "*");
+	cudaFree(NULL);
+	fprintf(stderr, "*");
 
 	/***********************REPLACE WITH INPUT FILE************************/	
 	char *chrom_names[] = {
@@ -41,7 +47,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	int max = add_offsets(U_list, chrom_num);
+	unsigned int max = add_offsets(U_list, chrom_num);
 
 
 	if (max == 0) {
@@ -117,44 +123,40 @@ int main(int argc, char *argv[]) {
 			A_start, A_len, A_size,
 			B_start, B_len, B_size );
 
-	//init_genrand((unsigned) time(NULL));
-	init_genrand(12);
+	init_genrand((unsigned) time(NULL));
 
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
+	unsigned int *A_start_d, *A_len_d, *B_start_d, *B_len_d, *R_d;
 
-	int j, x = 0;
+	cudaMalloc((void **)&A_start_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&A_len_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_start_d, (B_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_len_d, (B_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
+
+	cudaMemcpy(A_len_d, A_len, (A_size) * sizeof(unsigned int), 
+			cudaMemcpyHostToDevice);
+	cudaMemcpy(B_len_d, B_len, (B_size) * sizeof(unsigned int), 
+			cudaMemcpyHostToDevice);
+
+	int block_size = 256;
+	dim3 dimBlock(block_size);
+
+	int grid_size = ( A_size + block_size - 1) / (block_size * 1);
+	dim3 dimGridSearch( grid_size );
+
+	cudaError_t err;
+
+
+	int j, R, x = 0;
 	for (j = 0; j < reps; j++) {
 
-		start();
 		for (i = 0; i < A_size; i++)
-			//A_start[i] = genrand_int32() % max;
 			A_start[i] = genrand_int32();
 		for (i = 0; i < B_size; i++) 
 			B_start[i] = genrand_int32();
-			//B_start[i] = genrand_int32() % max;
-		stop();
-		//printf("r:%ld\t", report());
-		rand_total_time += report();
 
-		start();
 		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
 		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
-		stop();
-
-		/*
-		for (i = 0; i < A_size; i++)
-			printf("A:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		for (i = 0; i < B_size; i++) 
-			printf("B:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		*/
-
-
-		//printf("s:%ld\t", report());
-		sort_total_time += report();
-
-		start();
 
 		int r = count_intersections_bsearch(
 				A_start, A_len, A_size,
@@ -168,41 +170,25 @@ int main(int argc, char *argv[]) {
 				A_start, A_len, A_size,
 				B_start, B_len, B_size );
 
+		cudaMemcpy(A_start_d, A_start, (A_size) * sizeof(unsigned int), 
+				cudaMemcpyHostToDevice);
+		cudaMemcpy(B_start_d, B_start, (B_size) * sizeof(unsigned int), 
+				cudaMemcpyHostToDevice);
 
-		printf("%d,%d,%d\t", r,t,u);
+		intersection_brute_force <<<dimGridSearch, dimBlock >>>
+				( A_start_d, A_len_d, A_size, B_start_d, B_len_d, B_size, R_d);
 
-		stop();
-		//printf("i:%ld\t", report());
-		intersect_total_time += report();
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "intersect search: %s.\n", 
+					cudaGetErrorString(err) );
 
-		if (r >= O)
-			++x;
+		parallel_sum( R_d, block_size, A_size, 1024);
+		cudaMemcpy(&R, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+
+		printf("%d,%d,%d,%u\t", r,t,u,R);
 	}
-	printf("\n");
-
-	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
-
-	double  rand_avg_time = ( (double) rand_total_time) / reps,
-			sort_avg_time = ( (double) sort_total_time) / reps,
-			intersect_avg_time = ( (double)  intersect_total_time) / reps;
-
-	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
-
-	double  rand_prop_time = rand_avg_time/total_avg_time,
-			sort_prop_time = sort_avg_time/total_avg_time,
-			intersect_prop_time = intersect_avg_time/total_avg_time;
-
-	/*
-	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
-			A_size,
-			B_size,
-			A_size + B_size,
-			total_avg_time,
-			rand_avg_time, rand_prop_time,
-			sort_avg_time, sort_prop_time,
-			intersect_avg_time, intersect_prop_time);
-	*/
 	return 0;
-
 }

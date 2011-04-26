@@ -17,6 +17,7 @@ int binary_search( unsigned int *db,
 __device__
 int __min(int a, int b);
 
+/*
 __global__
 void intersection_b_search_sm_2 ( unsigned int *A_start,
 								  unsigned int *A_len,
@@ -26,6 +27,7 @@ void intersection_b_search_sm_2 ( unsigned int *A_start,
 								  int B_size,
 								  unsigned int *R,
 								  int N );
+								  */
 __global__
 void intersection_b_search_sm ( unsigned int *A_start,
 							 unsigned int *A_len,
@@ -76,4 +78,12 @@ void test_pairs ( int *A,
 				  int *R,
 				  int size);
 
+__global__
+void intersection_brute_force ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *R);
 #endif

@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[]) {
 	if (argc < 4) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
+		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b>\n");
 		return 1;
 	}
 
@@ -29,8 +29,6 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U_list, *A_list, *B_list;
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
-	int reps = atoi(argv[4]);
-
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
 	   (chr_list_from_bed_file(&A_list, chrom_names, chrom_num, A_file) == 1) ||
@@ -87,8 +85,11 @@ int main(int argc, char *argv[]) {
 	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
 
 	// sort A and B so they can be ranked
+	start();
 	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
 	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	stop();
+	unsigned long sort_seq = report();
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
@@ -113,96 +114,24 @@ int main(int argc, char *argv[]) {
 		B_len[i] = B[i*2 + 1].key - B[i*2].key;
 
 
-	int O = count_intersections_bsearch(
+	start();
+	int O = count_intersections_scan(
 			A_start, A_len, A_size,
 			B_start, B_len, B_size );
+	stop();
+	unsigned long count_seq = report();
 
-	//init_genrand((unsigned) time(NULL));
-	init_genrand(12);
-
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
-
-	int j, x = 0;
-	for (j = 0; j < reps; j++) {
-
-		start();
-		for (i = 0; i < A_size; i++)
-			//A_start[i] = genrand_int32() % max;
-			A_start[i] = genrand_int32();
-		for (i = 0; i < B_size; i++) 
-			B_start[i] = genrand_int32();
-			//B_start[i] = genrand_int32() % max;
-		stop();
-		//printf("r:%ld\t", report());
-		rand_total_time += report();
-
-		start();
-		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
-		stop();
-
-		/*
-		for (i = 0; i < A_size; i++)
-			printf("A:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		for (i = 0; i < B_size; i++) 
-			printf("B:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		*/
+	unsigned long total = sort_seq + count_seq;
 
 
-		//printf("s:%ld\t", report());
-		sort_total_time += report();
-
-		start();
-
-		int r = count_intersections_bsearch(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-
-		int t = count_intersections_scan(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-
-		int u = count_intersections_brute_force(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
+	fprintf(stderr,"O:%d\n", O);
+	printf("t:%ld\tsort:%ld,%G\tsearch:%ld,%G\n",
+			total,
+			sort_seq, (double)sort_seq / (double)total,
+			count_seq, (double)count_seq / (double)total
+	  );
 
 
-		printf("%d,%d,%d\t", r,t,u);
-
-		stop();
-		//printf("i:%ld\t", report());
-		intersect_total_time += report();
-
-		if (r >= O)
-			++x;
-	}
-	printf("\n");
-
-	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
-
-	double  rand_avg_time = ( (double) rand_total_time) / reps,
-			sort_avg_time = ( (double) sort_total_time) / reps,
-			intersect_avg_time = ( (double)  intersect_total_time) / reps;
-
-	double total_avg_time = rand_avg_time + sort_avg_time + intersect_avg_time;
-
-	double  rand_prop_time = rand_avg_time/total_avg_time,
-			sort_prop_time = sort_avg_time/total_avg_time,
-			intersect_prop_time = intersect_avg_time/total_avg_time;
-
-	/*
-	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
-			A_size,
-			B_size,
-			A_size + B_size,
-			total_avg_time,
-			rand_avg_time, rand_prop_time,
-			sort_avg_time, sort_prop_time,
-			intersect_avg_time, intersect_prop_time);
-	*/
 	return 0;
 
 }

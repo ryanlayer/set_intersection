@@ -485,3 +485,37 @@ void test_pairs ( int *A,
 	}
 }
 //}}}
+
+//{{{ void intersection_brute_force ( unsigned int *A_start,
+__global__
+void intersection_brute_force ( unsigned int *A_start,
+							 unsigned int *A_len,
+							 int A_size,
+							 unsigned int *B_start,
+							 unsigned int *B_len,
+							 int B_size,
+							 unsigned int *R)
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int i, c = 0;
+
+
+	//unsigned int i = id;
+	//unsigned int grid_size = blockDim.x * gridDim.x;
+
+	if (id < A_size) {
+		unsigned int A_s = A_start[id];
+		unsigned int A_e = A_start[id] + A_len[id];
+
+		for (i = 0; i < B_size; i++) {
+			unsigned int B_s = B_start[i];
+			unsigned int B_e = B_start[i] + B_len[i];
+
+			c += (A_s <= B_e) && (A_e >= B_s);
+
+		}
+		R[id] = c;
+	}
+}
+//}}}
+

@@ -8,7 +8,10 @@ EXECS=order_seq bsearch_seq get_rank_pairs get_maped_intervals \
 	  scan_seq brute_force num_sim_bsearch_seq \
 	  enumerate_bsearch_seq \
 	  count_bsearch_seq \
-	  num_sim_scan_seq
+	  count_scan_seq \
+	  num_sim_scan_seq \
+	  s_e_list \
+	  nc_list \
 
 BED_FILE_OBJS=../lib/bed.o
 SET_FILE_OBJS=../lib/set_intersect.o
@@ -34,10 +37,19 @@ num_sim_bsearch_seq: num_sim_bsearch_seq.o $(OBJS)
 count_bsearch_seq: count_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
+count_scan_seq: count_scan_seq.o $(OBJS) 
+	$(CC) -o $@  $< $(OBJS)
+
 enumerate_bsearch_seq: enumerate_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
 brute_force: brute_force.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+
+s_e_list: s_e_list.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
+
+nc_list: nc_list.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 order_seq: order_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)

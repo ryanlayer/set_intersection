@@ -102,8 +102,8 @@ void parse_bed_file(FILE *bed_file, struct chr_list chroms[], int chrom_num) {
 			
 			if (curr != NULL)
 				chr_list_insert_interval(curr, atoi(start), atoi(end));
-			//else
-				//printf("Not found: %s\n", chr);
+			else
+				printf("Not found: %s\n", chr);
 		}
 	}
 }
