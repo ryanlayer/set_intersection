@@ -197,8 +197,10 @@ int chr_list_from_bed_file(struct chr_list **list, char **chrom_names,
 
 	FILE *file = fopen(bed_file_name, "r");
 
-	if (file == NULL)
+	if (file == NULL) {
+		fprintf(stderr, "NULL FILE\n");
 		return 1;
+	}
 
 	parse_bed_file(file, *list, chrom_num);
 

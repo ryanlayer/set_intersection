@@ -84,6 +84,7 @@ void intersection_brute_force ( unsigned int *A_start,
 							 int A_size,
 							 unsigned int *B_start,
 							 unsigned int *B_len,
-							 int B_size,
-							 unsigned int *R);
+							 int n,
+							 unsigned int *R,
+							 int offset);
 #endif

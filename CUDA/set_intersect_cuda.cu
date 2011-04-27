@@ -493,8 +493,9 @@ void intersection_brute_force ( unsigned int *A_start,
 							 int A_size,
 							 unsigned int *B_start,
 							 unsigned int *B_len,
-							 int B_size,
-							 unsigned int *R)
+							 int n,
+							 unsigned int *R,
+							 int offset)
 {
 	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int i, c = 0;
@@ -507,14 +508,15 @@ void intersection_brute_force ( unsigned int *A_start,
 		unsigned int A_s = A_start[id];
 		unsigned int A_e = A_start[id] + A_len[id];
 
-		for (i = 0; i < B_size; i++) {
+		for (i = offset; i < offset + n; i++) {
 			unsigned int B_s = B_start[i];
 			unsigned int B_e = B_start[i] + B_len[i];
 
 			c += (A_s <= B_e) && (A_e >= B_s);
 
 		}
-		R[id] = c;
+		//R[id] = c;
+		R[id] += c;
 	}
 }
 //}}}

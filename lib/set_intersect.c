@@ -464,7 +464,7 @@ int count_intersections_scan( unsigned int *A,
 }
 //}}}
 
-//{{{ int count_intersections_scan( int *A, 
+//{{{ int count_o_intersections_scan( unsigned int *A, 
 /*
  * Scan two sorted lists counting overlaps
  */
@@ -812,3 +812,101 @@ void map_to_interval_pair( struct interval_pair *A,
 	}
 }
 //}}}
+
+//{{{ int count_intersections_sweep
+/*
+ * Scan two sorted lists counting overlaps
+ */
+int count_intersections_sweep( unsigned int *A, 
+							  unsigned int *A_len, 
+							  int A_size,
+							  unsigned int *B, 
+							  unsigned int *B_len,
+							  int B_size )
+{
+
+	int curr_A = 0, curr_B = 0;
+	unsigned int A_val = 0, B_val = 0;
+	int inA = 0, inB = 0;
+
+	int o = 0;
+
+	//while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
+	while ( (curr_A < A_size ) || (curr_B < B_size ) ) {
+
+		//fprintf(stderr, "a:%d %d\tb:%d %d\n", curr_A, A_size, curr_B, B_size);
+
+		// The current values depend on if we are in or not in a segment
+		if ( inA )
+			A_val = A[curr_A] + A_len[curr_A];
+		else
+			A_val = A[curr_A];
+
+		if ( inB )
+			B_val = B[curr_B] + B_len[curr_B];
+		else
+			B_val = B[curr_B];
+
+		//if ( (curr_A < A_size - 1 ) && (curr_B < B_size - 1 ) ) {
+		if ( (curr_A < A_size ) && (curr_B < B_size ) ) {
+
+			// Move the pointer
+			if ( A_val < B_val ) {
+
+				if (inA)
+					++curr_A;
+				inA = !inA;
+
+			} else if ( A_val > B_val ) {
+
+				if (inB)
+					++curr_B;
+				inB = !inB;
+
+			} else { // A_val == B_val
+
+				// both are ending (EE)
+				if (inA && inB) {
+					++curr_A;
+					++curr_B;
+					inA = !inA;
+					inB = !inB;
+
+				// A is ending B is starting (ES)
+				} else if (inA && !inB) {
+					//++curr_B;
+					inB = !inB;
+				// A is starting B is ending (SE)
+				} else if (!inA && inB) {
+					//++curr_A;
+					inA = !inA;
+				// both are starting (SS)
+				} else { 
+					inA = !inA;
+					inB = !inB;
+				}
+			}
+		} else if (curr_A < A_size ) {
+			if (inA)
+				++curr_A;
+			inA = !inA;
+		} else if (curr_B < B_size ) {
+			if (inB)
+				++curr_B;
+			inB = !inB;
+		}
+
+		if (inA && inB)  {
+			/*
+			printf("%d (%u,%u)\t%d (%u,%u)\n", 
+					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
+					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
+					*/
+			++o;
+		}
+	}
+
+	return o;
+}
+//}}}
+
