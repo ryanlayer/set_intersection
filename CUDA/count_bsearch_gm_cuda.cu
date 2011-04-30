@@ -168,12 +168,15 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr,"O:%d\n", O);
 
-	printf( "t:%ld\t"
+	printf("%d,%d,%d\tT:%ld\t"
 			"up:%ld,%G\t"
 			"sort:%ld,%G\t"
 			"search:%ld,%G\t"
 			"sum:%ld,%G\t"
 			"down:%ld,%G\n",
+			A_size,
+			B_size,
+			A_size + B_size,
 			total,
 			memup_time, (double)memup_time / (double)total,
 			sort_time, (double)sort_time / (double)total,
@@ -181,6 +184,8 @@ int main(int argc, char *argv[]) {
 			sum_time, (double)sum_time / (double)total,
 			memdown_time, (double)memdown_time / (double)total
 		  );
+
+
 
 	cudaFree(A_key_d);
 	cudaFree(B_key_d);

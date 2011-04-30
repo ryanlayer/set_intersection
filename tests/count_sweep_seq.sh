@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source $HOME/src/set_intersection/tests/files.sh
+
+$COUNT_SWEEP_SEQ $U $KIL_A $KIL_B
+$COUNT_SWEEP_SEQ $U $TEN_KIL_A $TEN_KIL_B
+$COUNT_SWEEP_SEQ $U $HUND_KIL_A $HUND_KIL_B
+$COUNT_SWEEP_SEQ $U $MIL_A $MIL_B
+#$COUNT_SWEEP_SEQ $U $TEN_MIL_A $TEN_MIL_B

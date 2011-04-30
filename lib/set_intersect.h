@@ -22,13 +22,14 @@ struct interval_pair
 	unsigned int start, end;
 };
 
-
 void set_start_len( struct bed_line *U_array,
 					int U_size,
 					struct bed_line *A_array,
 					unsigned int *A_key_h,
 					unsigned int *A_val_h,
 					int A_size );
+
+int compare_interval_triples_start_to_end (const void *key, const void *b);
 
 int compare_interval_triples_by_start (const void *a, const void *b);
 
@@ -71,12 +72,12 @@ int count_intersections_scan( unsigned int *A,
 							  unsigned int *B_len,
 							  int B_size );
 
+int count_intersections_sweep( struct triple *AB, 
+							   int A_size,
+							   int B_size );
+
 unsigned int add_offsets( struct chr_list *U_list, 
 				  int chrom_num );
-
-int count_intersections( struct triple *AB,
-						 int A_size,
-						 int B_size);
 
 int find_intersecting_ranks( struct triple *AB,
 							 int A_size,

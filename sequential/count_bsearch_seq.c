@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <string.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -9,10 +10,44 @@
 #include "../lib/timer.h"
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
+#define MAX(a,b) ((a)<(b)?(b):(a))
+
+int interval_triple_bsearch_end( struct interval_triple *A_end, 
+								 int A_size,
+								 unsigned int key) {
+	int lo = -1, hi = A_size, mid;
+	while ( hi - lo > 1) {
+		mid = (hi + lo) / 2;
+
+		if ( A_end[mid].end < key)
+			lo = mid;
+		else
+			hi = mid;
+	}
+
+	return hi;
+}
+
+int interval_triple_bsearch_start( struct interval_triple *A_start, 
+								   int A_size,
+								   unsigned int key) {
+	int lo = -1, hi = A_size, mid;
+	while ( hi - lo > 1) {
+		mid = (hi + lo) / 2;
+
+		if ( A_start[mid].start < key )
+			lo = mid;
+		else
+			hi = mid;
+	}
+
+	return hi;
+}
+
 
 int main(int argc, char *argv[]) {
 	if (argc < 4) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
+		fprintf(stderr, "usage: %s <u> <a> <b>\n", argv[0]);
 		return 1;
 	}
 
@@ -47,10 +82,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
-
 
 	int i;
 
@@ -64,74 +97,143 @@ int main(int argc, char *argv[]) {
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
 
-	// make one large array to hold these
-	/* 
-	 * We need to put both A and B into a single array then sort it
-	 *
-	 * Each interval becomes a triple: 
-	 *   key:  offset
-	 *   sample:  A (0) or B (1)
-	 *   type:  start (0) or  end (1)
-	 *   rank: order within
-	 *
-	 */
-	struct triple *AB = (struct triple *)
-			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
-	//A and B points to AB, A to the beging and B to the interior, after A
-	struct triple *A = AB;
-	struct triple *B = AB + 2*A_size;
+	struct interval_triple *A = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
+	struct interval_triple *A_end = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
 
-	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
-	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
+	struct interval_triple *B = (struct interval_triple *)
+			malloc(B_size * sizeof(struct interval_triple));
+
+	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
+	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
 
 	// sort A and B so they can be ranked
 	start();
-	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
-	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	/*
+	qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	*/
+	/*  Looks like we don't need ranks
+	for (i = 0; i < A_size; i++)
+		A[i].rank = i;
+	*/
+
+	memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+	qsort(A_end, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_end);
 	stop();
 	unsigned long sort_seq = report();
 
-	unsigned int *A_len = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_len = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
 
-	unsigned int *A_start = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_start = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
+	/* It appears ranking is not needed
+	// Weight each interval by the number of intervals that contain it
+	unsigned int *A_w = (unsigned int *) malloc(A_size * sizeof(unsigned int));
+	bzero(A_w, A_size * sizeof(unsigned int));
 
-	// Set sized
+	int j;
+	for (i = 0; i < A_size - 1; i++) {
+		j = i + 1;
+		while ( (A[i].end >= A[j].end) && (j < A_size) ) {
+			A_w[j] = A_w[j] + 1;
+			++j;
+		}
+	}
+
 	for (i = 0; i < A_size; i++)
-		A_start[i] = A[i*2].key;
-	for (i = 0; i < B_size; i++) 
-		B_start[i] = B[i*2].key;
-
-	// Get lengthsrank = i/2;
-	for (i = 0; i < A_size; i++)
-		A_len[i] = A[i*2 + 1].key - A[i*2].key;
-	for (i = 0; i < B_size; i++)
-		B_len[i] = B[i*2 + 1].key - B[i*2].key;
-
+		printf("%d\t%d (%u, %u)\t%d (%u, %u)\n", 
+				i, A[i].rank, A[i].start, A[i].end,
+				A_end[i].rank, A_end[i].start, A_end[i].end);
+	*/
+	int O = 0;
 
 	start();
-	int O = count_intersections_bsearch(
-			A_start, A_len, A_size,
-			B_start, B_len, B_size );
+	for (i = 0; i < B_size; i++) {
+		// Find the position of the last interval to END before the query
+		// interval STARTS
+		int a = interval_triple_bsearch_end(A_end, A_size, B[i].start);
+		// The key in this search is the start of the query, and the search
+		// space is the set of interval ends.
+		// The result, a,  is either the 
+		// (1) insert position:
+		//		the seiries of  intervals A_end[0], ..., A_end[a-1] end before
+		//		the query starts, and the intervals 
+		//		A_end[a], ..., A_end[A_size - 1] end after the query starts.
+		//		In this case a is also the size of the set 
+		//		{A_end[0], ... ,A_end[a-1]}
+		// (2) position of a match:
+		//		since we are talking about closed intervals, the interval 
+		//		A_end[a] does not end before the query starts, so 
+		//		the seiries of intervals the end before the query starts is 
+		//		is A_end[0], ..., A_end[a-1], and a is still the size of that
+		//		set
+
+		// Find the position of the first interval to START after the query
+		// ENDS
+		int b = interval_triple_bsearch_start(A, A_size, B[i].end);
+		// The key in this search is the end of the query, and the search space
+		// is the set of interval starts
+		// The result, b, is either the
+		// (1) insert position:
+		//		in this case, A[b] starts after the query ends, so the series of
+		//		intervals A[b], ..., A[A_size - 1] start after the querty and,
+		//		and the size of that set is A_size - b
+		// (2) position of a match:
+		//		int this case, A[b + 1] starts after the query ends, and the
+		//		size of that set is A_size - b - 1.  It is possible  that
+		//		A[b] == A[b + 1] == A[b + 2] and so on, in which case we need a
+		//		little while loop to move b past all of these
+
+		//int start_pos = MAX(0,a);
+		//int end_pos = MIN(A_size - 1,b);
+
+		int num_cant_before = a; 
+		//int num_cant_after = A_size - b;
+
+		while ( A[b].start == B[i].end )
+			++b;
+
+		int num_cant_after = A_size - b;
+
+		int num_left = A_size - num_cant_before - num_cant_after;
+		O += num_left;
+		/*
+		printf("can b:%d\tcant a:%d\tcan:%d\t",
+				num_cant_before,
+				num_cant_after,
+				num_left);
+
+		printf("a:%d\tb:%d\t", a, b);
+
+		printf("q:(%u,%u)\tSE:%d (%u,%u)\tSS:%d (%u,%u)\n", 
+				B[i].start,
+				B[i].end,
+				A_end[start_pos].rank,
+				A_end[start_pos].start,A_end[start_pos].end,
+				A[end_pos].rank, 
+				A[end_pos].start, A[end_pos].end
+				); 
+		*/
+	}
 	stop();
 	unsigned long count_seq = report();
 
 	unsigned long total = sort_seq + count_seq;
 
-
 	fprintf(stderr,"O:%d\n", O);
-	printf("t:%ld\tsort:%ld,%G\tsearch:%ld,%G\n",
+
+	printf("%d,%d,%d\tT:%ld\t"
+			"sort:%ld,%G\t"
+			"search:%ld,%G\n",
+			A_size,
+			B_size,
+			A_size + B_size,
 			total,
 			sort_seq, (double)sort_seq / (double)total,
 			count_seq, (double)count_seq / (double)total
-	  );
-
+		  );
 
 	return 0;
-
 }
