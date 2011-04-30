@@ -5,6 +5,10 @@ SEQ_BASE=$HOME/src/set_intersection/sequential
 OMP_BASE=$HOME/src/set_intersection/omp
 MPI_BASE=$HOME/src/set_intersection/mpi
 
+COUNT_SWEEP_SEQ=$SEQ_BASE/count_sweep_seq
+COUNT_BRUTE_SEQ=$SEQ_BASE/count_brute_force_seq
+COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
+
 #BASE=/home/rl6sf/data/intr
 BASE=/bigtemp/rl6sf/interval/
 
@@ -14,6 +18,16 @@ B=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksGm12878H3k4me3.broadPeak.bed
 BIGA=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12865Ctcf.broadPeak.bed
 BIGB=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12865Ctcf.broadPeak.bed
 SIMPLE_REPEATS=$BASE/hg18/simple_repeats.bed
+TEN_MIL_A=$BASE/hg18/c.aln.10M.fix.bed
+TEN_MIL_B=$BASE/hg18/c.aln.10M.shuff.fix.bed
+MIL_A=$BASE/hg18/c.aln.1M.fix.bed
+MIL_B=$BASE/hg18/c.aln.1M.shuff.fix.bed
+HUND_KIL_A=$BASE/hg18/c.aln.100K.fix.bed
+HUND_KIL_B=$BASE/hg18/c.aln.100K.shuff.fix.bed
+TEN_KIL_A=$BASE/hg18/c.aln.10K.fix.bed
+TEN_KIL_B=$BASE/hg18/c.aln.10K.shuff.fix.bed
+KIL_A=$BASE/hg18/c.aln.1K.fix.bed
+KIL_B=$BASE/hg18/c.aln.1K.shuff.fix.bed
 #B=$A
 #A=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksHsmmH3k4me1.broadPeak.bed
 #B=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksH1hescH3k4me1.broadPeak.bed

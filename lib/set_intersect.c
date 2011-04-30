@@ -1,6 +1,7 @@
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
 
+//{{{ compare_*
 int compare_interval_pairs_by_start (const void *a, const void *b)
 {
 	struct interval_pair *a_i = (struct interval_pair *)a;
@@ -8,13 +9,20 @@ int compare_interval_pairs_by_start (const void *a, const void *b)
 	return a_i->start - b_i->start;
 }
 
-
 int compare_interval_triples_by_start (const void *a, const void *b)
 {
 	struct interval_triple *a_i = (struct interval_triple *)a;
 	struct interval_triple *b_i = (struct interval_triple *)b;
 	return a_i->start - b_i->start;
 }
+
+int compare_interval_triples_start_to_end (const void *key, const void *b)
+{
+	struct interval_triple *key_i = (struct interval_triple *)key;
+	struct interval_triple *b_i = (struct interval_triple *)b;
+	return key_i->start - b_i->end;
+}
+
 
 int compare_interval_triples_by_end (const void *a, const void *b)
 {
@@ -27,7 +35,21 @@ int compare_triple_lists (const void *a, const void *b)
 {
 	struct triple *a_i = (struct triple *)a;
 	struct triple *b_i = (struct triple *)b;
-	return a_i->key - b_i->key;
+	//return a_i->key - b_i->key;
+	if (a_i->key < b_i->key)
+		return -1;
+	else if (a_i->key > b_i->key)
+		return 1;
+	else if (a_i->type < b_i->type)
+		return -1;
+	else if (a_i->type > b_i->type)
+		return 1;
+	else if (a_i->sample < b_i->sample)
+		return -1;
+	else if (a_i->sample > b_i->sample)
+		return 1;
+	else
+		return 0;
 }
 
 int compare_pair_lists (const void *a, const void *b)
@@ -48,6 +70,7 @@ int compare_uints (const void *a, const void *b)
 	else
 		return 0;
 }
+//}}}
 
 //{{{ void set_start_len( struct bed_line *U_array,
 void set_start_len( struct bed_line *U_array,
@@ -76,76 +99,6 @@ void set_start_len( struct bed_line *U_array,
 	}
 }
 //}}}
-
-/*
-//{{{ int count_intersections_bsearch( struct interval *A_r,
-int count_o_intersections_bsearch( unsigned int *A_start,
-								 unsigned int *A_len,
-								 int A_size,
-								 unsigned int *B_start,
-								 unsigned int *B_len,
-								 int B_size )
-{
-	unsigned int *B_pos = 
-			(unsigned int *) malloc(2*B_size * sizeof(unsigned int));
-	int i, c = 0;
-
-	for (i = 0; i < B_size; i++) {
-
-	for (i = 0; i < A_size; i++) {
-		// Search for the left-most interval in B with the start in A
-		int lo = -1, hi = B_size, mid;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_start[mid] < A_start[i] ) 
-				lo = mid;
-			else
-				hi = mid;
-
-		}
-
-		int left = hi;
-
-		lo = -1;
-		hi = B_size;
-		while ( hi - lo > 1) {
-			mid = (hi + lo) / 2;
-
-			if ( B_start[mid] < (A_start[i] + A_len[i]) ) 
-				lo = mid;
-			else
-				hi = mid;
-		}
-
-		int right = hi;
-
-		int range_start, range_end;
-
-		if ( ( A_start[i] == B_start[left] ) ) {
-			range_start = left;
-		} else if ( ( left > 0 ) &&
-					( A_start[i] <= B_start[left - 1] + B_len[left - 1]) ) {
-			range_start = left - 1;
-		} else {
-			range_start = left;
-		}
-
-
-		if ( (right < B_size) &&
-			 ( A_start[i] + A_len[i] == B_start[right] ) ) {
-			range_end = right;
-		} else {
-			range_end = right - 1;
-		} 
-
-		c += range_end - range_start + 1;
-	}
-
-	return c;
-}
-// }}}
-*/
 
 //{{{ int count_intersections_bsearch( struct interval *A_r,
 int count_intersections_bsearch( unsigned int *A_start,
@@ -618,31 +571,6 @@ unsigned int add_offsets( struct chr_list *U_list,
 }
 //}}}
 
-//{{{ int count_intersections( struct triple *AB,
-/*
- * Requires AB to be sorted
- */
-int count_intersections( struct triple *AB,
-						 int A_size,
-						 int B_size)
-{
-	int num_pairs = 0;
-	int inB = 0, inA = 0;
-	int i;
-	for (i = 0; i < (2*A_size + 2*B_size); i++) {
-		if ( AB[i].sample == 1) // B
-			inB = !(AB[i].type);
-		else  // A
-			inA = !(AB[i].type);
-
-		if (inA && inB) 
-			++num_pairs;
-	}
-
-	return num_pairs;
-}
-//}}}
-
 //{{{ int find_intersecting_ranks( struct triple *AB,
 /*
  * Requires AB to be sorted
@@ -739,7 +667,6 @@ void map_intervals( struct triple *A,
 				 ( U_array[j].end >= A_array[i].start) ) {
 				start = U_array[j].start;
 				offset = U_array[j].offset;
-				//printf("s:%d\to:%d\n", start, offset);
 				break;
 			}
 		}
@@ -751,6 +678,12 @@ void map_intervals( struct triple *A,
 		A[k].type = 1;// end
 		A[k].sample = sample; // A(0) or B(1)
 		++k;
+		/*
+		fprintf(stderr, "chr:%d\tstart:%d\tend:%d\tstart:%u\tend:%d\n",
+				A_array[i].chr, A_array[i].start, A_array[i].end, 
+				A_array[i].start - start + offset,
+				A_array[i].end - start + offset);
+				*/
 	}
 }
 //}}}
@@ -815,98 +748,33 @@ void map_to_interval_pair( struct interval_pair *A,
 
 //{{{ int count_intersections_sweep
 /*
- * Scan two sorted lists counting overlaps
+ * AB is a single sorted list with both A and B elements
  */
-int count_intersections_sweep( unsigned int *A, 
-							  unsigned int *A_len, 
+int count_intersections_sweep( struct triple *AB, 
 							  int A_size,
-							  unsigned int *B, 
-							  unsigned int *B_len,
 							  int B_size )
 {
-
-	int curr_A = 0, curr_B = 0;
-	unsigned int A_val = 0, B_val = 0;
-	int inA = 0, inB = 0;
-
-	int o = 0;
-
-	//while ( (curr_A < A_size - 1 ) || (curr_B < B_size - 1 ) ) {
-	while ( (curr_A < A_size ) || (curr_B < B_size ) ) {
-
-		//fprintf(stderr, "a:%d %d\tb:%d %d\n", curr_A, A_size, curr_B, B_size);
-
-		// The current values depend on if we are in or not in a segment
-		if ( inA )
-			A_val = A[curr_A] + A_len[curr_A];
-		else
-			A_val = A[curr_A];
-
-		if ( inB )
-			B_val = B[curr_B] + B_len[curr_B];
-		else
-			B_val = B[curr_B];
-
-		//if ( (curr_A < A_size - 1 ) && (curr_B < B_size - 1 ) ) {
-		if ( (curr_A < A_size ) && (curr_B < B_size ) ) {
-
-			// Move the pointer
-			if ( A_val < B_val ) {
-
-				if (inA)
-					++curr_A;
-				inA = !inA;
-
-			} else if ( A_val > B_val ) {
-
-				if (inB)
-					++curr_B;
-				inB = !inB;
-
-			} else { // A_val == B_val
-
-				// both are ending (EE)
-				if (inA && inB) {
-					++curr_A;
-					++curr_B;
-					inA = !inA;
-					inB = !inB;
-
-				// A is ending B is starting (ES)
-				} else if (inA && !inB) {
-					//++curr_B;
-					inB = !inB;
-				// A is starting B is ending (SE)
-				} else if (!inA && inB) {
-					//++curr_A;
-					inA = !inA;
-				// both are starting (SS)
-				} else { 
-					inA = !inA;
-					inB = !inB;
-				}
-			}
-		} else if (curr_A < A_size ) {
-			if (inA)
-				++curr_A;
-			inA = !inA;
-		} else if (curr_B < B_size ) {
-			if (inB)
-				++curr_B;
-			inB = !inB;
-		}
-
-		if (inA && inB)  {
-			/*
-			printf("%d (%u,%u)\t%d (%u,%u)\n", 
-					curr_A, A[curr_A], A[curr_A] + A_len[curr_A],
-					curr_B, B[curr_B], B[curr_B] + B_len[curr_B]);
-					*/
-			++o;
-		}
+	int num_pairs = 0;
+	int inB = 0, inA = 0;
+	int i;
+	for (i = 0; i < (2*A_size + 2*B_size); i++) {
+		if ( AB[i].sample == 1) // B
+			if ( AB[i].type == 0 ) { // start
+				inB++;
+				//num_pairs += inB * inA;
+				num_pairs += inA;
+			} else
+				inB--;
+		else // A
+			if ( AB[i].type == 0 ) { // start
+				inA++;
+				//num_pairs += inB * inA;
+				num_pairs += inB;
+			} else
+				inA--;
 	}
 
-	return o;
+	return num_pairs;
 }
 //}}}
 
