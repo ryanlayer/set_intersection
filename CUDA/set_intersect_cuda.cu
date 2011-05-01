@@ -521,3 +521,52 @@ void intersection_brute_force ( unsigned int *A_start,
 }
 //}}}
 
+//{{{ __global__ void count_bsearch_cuda (	unsigned int *A_start,
+/*
+ * @param A_start list of start positions to query, does not need to be sorted
+ * @param A_len list of lengths that correspond to A_start
+ * @param A_size size of A_start and A_len
+ * @param B_start list of sorted start positions to be queried
+ * @param B_end list of sorted end positions to be queired 
+ * @param B_size size of B_start and B_end
+ * @param R number of intersections for each interval in A
+ * @param n number of intervals per thread
+ */
+__global__
+void count_bsearch_cuda (	unsigned int *A_start,
+							unsigned int *A_len,
+							int A_size,
+							unsigned int *B_start,
+							unsigned int *B_end,
+							int B_size,
+							unsigned int *R,
+							int n)
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	unsigned int i = id;
+	unsigned int grid_size = blockDim.x * gridDim.x;
+
+	//R[i] = blockIdx.x;
+	while ( i < (n * grid_size) ) {
+
+		if (i < A_size) {
+			//R[id] = 0;
+
+			unsigned int start = A_start[i];
+			unsigned int end = start + A_len[i];
+
+			int cant_before = binary_search(B_end, B_size, start);
+			int cant_after = binary_search(B_start, B_size, end);
+
+			while ( end == B_start[cant_after] )
+				++cant_after;
+
+			cant_after = A_size - cant_after;	
+
+			R[i] = A_size - cant_before - cant_after;
+		}
+		i += grid_size;
+	}
+}
+//}}}

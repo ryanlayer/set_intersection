@@ -87,4 +87,13 @@ void intersection_brute_force ( unsigned int *A_start,
 							 int n,
 							 unsigned int *R,
 							 int offset);
+__global__
+void count_bsearch_cuda (	unsigned int *A_start,
+							unsigned int *A_len,
+							int A_size,
+							unsigned int *B_start,
+							unsigned int *B_end,
+							int B_size,
+							unsigned int *R,
+							int n);
 #endif

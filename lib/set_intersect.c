@@ -73,11 +73,19 @@ int compare_uints (const void *a, const void *b)
 //}}}
 
 //{{{ void set_start_len( struct bed_line *U_array,
+/*
+ * @param U_array the universe to consider
+ * @param U_size size of the universe
+ * @param A_array set of intervals to map
+ * @param A_start set of resulting start positions
+ * @param A_len set of resulting lengths
+ * @param A_size number of elements to map
+ */
 void set_start_len( struct bed_line *U_array,
 					int U_size,
 					struct bed_line *A_array,
-					unsigned int *A_key_h,
-					unsigned int *A_val_h,
+					unsigned int *A_start,
+					unsigned int *A_len,
 					int A_size )
 {
 	int i, j, k = 0;
@@ -93,8 +101,44 @@ void set_start_len( struct bed_line *U_array,
 				break;
 			}
 		}
-		A_key_h[k] = A_array[i].start - start + offset;
-		A_val_h[k] = A_array[i].end -A_array[i].start;
+		A_start[k] = A_array[i].start - start + offset;
+		A_len[k] = A_array[i].end -A_array[i].start;
+		++k;
+	}
+}
+//}}}
+
+//{{{ void set_start_end( struct bed_line *U_array,
+/*
+ * @param U_array the universe to consider
+ * @param U_size size of the universe
+ * @param A_array set of intervals to map
+ * @param A_start set of resulting start positions
+ * @param A_end set of resulting lengths
+ * @param A_size number of elements to map
+ */
+void set_start_end( struct bed_line *U_array,
+					int U_size,
+					struct bed_line *A_array,
+					unsigned int *A_start,
+					unsigned int *A_end,
+					int A_size )
+{
+	int i, j, k = 0;
+	for (i = 0; i < A_size; i++) {
+		int start = -1, offset = -1;
+		for (j = 0; j < U_size; j++) {
+			if ( ( U_array[j].chr == A_array[i].chr) &&
+				 ( U_array[j].start <= A_array[i].end) &&
+				 ( U_array[j].end >= A_array[i].start) ) {
+
+				start = U_array[j].start;
+				offset = U_array[j].offset;
+				break;
+			}
+		}
+		A_start[k] = A_array[i].start - start + offset;
+		A_end[k] = A_array[i].end - start + offset;
 		++k;
 	}
 }

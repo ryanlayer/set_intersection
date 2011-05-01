@@ -18,15 +18,16 @@ int main(int argc, char *argv[]) {
 
 
 	if (argc < 6) {
-		fprintf(stderr, "usage: order <u> <a> <b> "
-				"<reps> <inter N> <sum N> <device>\n"
-				"e.g., order U.bed A.bed B.bed 10000 1 1024 1\n");
+		fprintf(stderr, "usage: %s <u> <a> <b> "
+				"<inter N> <sum N> <device>\n"
+				"e.g., order U.bed A.bed B.bed 1 1024 0\n",
+				argv[0]);
 		return 1;
 	}
 
 	int chrom_num = 24;
 
-	CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[7] ) ) );
+	CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[6] ) ) );
 
 	/***********************REPLACE WITH INPUT FILE************************/	
 	char *chrom_names[] = {
@@ -39,9 +40,8 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U, *A, *B;
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
-	int reps = atoi(argv[4]);
-	int inter_threads = atoi(argv[5]);
-	int sum_threads = atoi(argv[6]);
+	int inter_threads = atoi(argv[4]);
+	int sum_threads = atoi(argv[5]);
 
 	if	( ( chr_list_from_bed_file(&U, chrom_names, chrom_num, U_file) == 1) ||
 		  ( chr_list_from_bed_file(&A, chrom_names, chrom_num, A_file) == 1) ||
@@ -63,42 +63,41 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A, &A_array, chrom_num);
 	B_size = chr_array_from_list(B, &B_array, chrom_num);
 
-	unsigned int *A_key_h = 
+	unsigned int *A_start_h = 
 		(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
-	unsigned int *A_val_h = 
+	unsigned int *A_len_h = 
 		(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
 
-	unsigned int *B_key_h = 
+	unsigned int *B_start_h = 
 		(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-	unsigned int *B_val_h = 
+	unsigned int *B_end_h = 
 		(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-
 
 	/*
 	 * In CUDA we can sort key value pairs, 
 	 * the key can be the offset, and the value can be the length
 	 */
 	set_start_len( U_array, U_size,
-				   A_array, A_key_h, A_val_h, A_size );
+				   A_array, A_start_h, A_len_h, A_size );
 
-	set_start_len( U_array, U_size,
-				   B_array, B_key_h, B_val_h, B_size );
+	set_start_end( U_array, U_size,
+				   B_array, B_start_h, B_end_h, B_size );
 
 	// Move A and B to deviceB
-	unsigned int *A_key_d, *A_val_d, *B_key_d, *B_val_d;
-	cudaMalloc((void **)&A_key_d, (A_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&A_val_d, (A_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_key_d, (B_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_val_d, (B_size)*sizeof(unsigned int));
+	unsigned int *A_start_d, *A_len_d, *B_start_d, *B_end_d;
+	cudaMalloc((void **)&A_start_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&A_len_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_start_d, (B_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_end_d, (B_size)*sizeof(unsigned int));
 
 	start();
-	cudaMemcpy(A_key_d, A_key_h, (A_size) * sizeof(unsigned int), 
+	cudaMemcpy(A_start_d, A_start_h, (A_size) * sizeof(unsigned int), 
 			cudaMemcpyHostToDevice);
-	cudaMemcpy(A_val_d, A_val_h, (A_size) * sizeof(unsigned int),
+	cudaMemcpy(A_len_d, A_len_h, (A_size) * sizeof(unsigned int),
 			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_key_d, B_key_h, (B_size) * sizeof(unsigned int), 
+	cudaMemcpy(B_start_d, B_start_h, (B_size) * sizeof(unsigned int), 
 			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_val_d, B_val_h, (B_size) * sizeof(unsigned int),
+	cudaMemcpy(B_end_d, B_end_h, (B_size) * sizeof(unsigned int),
 			cudaMemcpyHostToDevice);
 	stop();
 
@@ -123,14 +122,19 @@ int main(int argc, char *argv[]) {
 	cudaError_t err;
 
 	// Sort A
+	/*
 	nvRadixSort::RadixSort radixsortA(A_size, false);
-	radixsortA.sort((unsigned int*)A_key_d, (unsigned int*)A_val_d, 
+	radixsortA.sort((unsigned int*)A_start_d, (unsigned int*)A_len_d, 
 			A_size, 32);
+	*/
+	// Sort B by start
+	nvRadixSort::RadixSort radixsortB_start(B_size, true);
+	radixsortB_start.sort((unsigned int*)B_start_d, 0, B_size, 32);
 
-	// Sort B
-	nvRadixSort::RadixSort radixsortB(B_size, false);
-	radixsortB.sort((unsigned int*)B_key_d, (unsigned int*)B_val_d, 
-			B_size, 32);
+	// Sort B by end
+	nvRadixSort::RadixSort radixsortB_end(B_size, true);
+	radixsortB_end.sort((unsigned int*)B_end_d, 0, B_size, 32);
+
 	cudaThreadSynchronize();
 	stop();
 	unsigned long sort_time = report();
@@ -142,10 +146,11 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
 
 	start();
-	intersection_b_search <<<dimGridSearch, 
-							dimBlock >>> ( A_key_d, A_val_d, A_size,
-										   B_key_d, B_val_d, B_size,
-										   R_d, 1);
+	count_bsearch_cuda <<<dimGridSearch, dimBlock >>> (
+			A_start_d, A_len_d, A_size,
+			B_start_d, B_end_d, B_size,
+			R_d,
+			1);
 
 	cudaThreadSynchronize();
 	stop();
@@ -185,10 +190,8 @@ int main(int argc, char *argv[]) {
 			memdown_time, (double)memdown_time / (double)total
 		  );
 
-
-
-	cudaFree(A_key_d);
-	cudaFree(B_key_d);
+	cudaFree(A_start_d);
+	cudaFree(B_start_d);
 	cudaFree(R_d);
 
 	return 0;

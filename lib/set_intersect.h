@@ -25,9 +25,17 @@ struct interval_pair
 void set_start_len( struct bed_line *U_array,
 					int U_size,
 					struct bed_line *A_array,
-					unsigned int *A_key_h,
-					unsigned int *A_val_h,
+					unsigned int *A_start,
+					unsigned int *A_len,
 					int A_size );
+
+void set_start_end( struct bed_line *U_array,
+					int U_size,
+					struct bed_line *A_array,
+					unsigned int *A_start,
+					unsigned int *A_end,
+					int A_size );
+
 
 int compare_interval_triples_start_to_end (const void *key, const void *b);
 
