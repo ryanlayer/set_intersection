@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <string.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -13,7 +14,7 @@
 
 int main(int argc, char *argv[]) {
 	if (argc < 4) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
+		fprintf(stderr, "usage: %s <u> <a> <b> <p>\n", argv[0]);
 		return 1;
 	}
 
@@ -54,9 +55,6 @@ int main(int argc, char *argv[]) {
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
 
-
-	int i;
-
 	int A_size, B_size, U_size;
 
 	struct bed_line *U_array, *A_array, *B_array;
@@ -66,82 +64,52 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
+	struct interval_triple *A = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
+	struct interval_triple *A_end = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
 
-	// make one large array to hold these
-	/* 
-	 * We need to put both A and B into a single array then sort it
-	 *
-	 * Each interval becomes a triple: 
-	 *   key:  offset
-	 *   sample:  A (0) or B (1)
-	 *   type:  start (0) or  end (1)
-	 *   rank: order within
-	 *
-	 */
-	struct triple *AB = (struct triple *)
-			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
-	//A and B points to AB, A to the beging and B to the interior, after A
-	struct triple *A = AB;
-	struct triple *B = AB + 2*A_size;
+	struct interval_triple *B = (struct interval_triple *)
+			malloc(B_size * sizeof(struct interval_triple));
 
-	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
-	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
+	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
+	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
 
-	// sort A and B so they can be ranked
+	// sort A so it can be searched by start
 	start();
-	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
-	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	/*
+	qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	*/
+
+	// copy A to A_end, sort A_end so it can be searched by end
+	memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+	qsort(A_end, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_end);
 	stop();
 	unsigned long sort_seq = report();
 
-	unsigned int *A_len = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_len = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
+	start();
+	int O = count_intersections_bsearch_omp( A, A_end, A_size, B, B_size, p);
+	stop();
+	unsigned long count_seq = report();
 
-	unsigned int *A_start = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_start = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
+	unsigned long total = sort_seq + count_seq;
 
-	// Set sized
-	for (i = 0; i < A_size; i++)
-		A_start[i] = A[i*2].key;
-	for (i = 0; i < B_size; i++) 
-		B_start[i] = B[i*2].key;
+	fprintf(stderr,"O:%d\n", O);
 
-	// Get lengthsrank = i/2;
-	for (i = 0; i < A_size; i++)
-		A_len[i] = A[i*2 + 1].key - A[i*2].key;
-	for (i = 0; i < B_size; i++)
-		B_len[i] = B[i*2 + 1].key - B[i*2].key;
-
-	int s_O = count_intersections_bsearch(
-			A_start, A_len, A_size,
-			B_start, B_len, B_size);
-	
-
-	for (p = 1; p <= 10; p ++) {
-		start();
-		int O = count_intersections_bsearch_omp(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size, 3);
-		stop();
-		printf("o:%d,%d\tp:%d\tt:%ld\n", s_O, O, p, report());
-	}
-	//unsigned long count_seq = report();
-
-	//unsigned long total = sort_seq + count_seq;
-
-
-	//fprintf(stderr,"O:%d\n", O);
-	//printf("t:%ld\tsort:%ld,%G\tsearch:%ld,%G\n",
-			//total,
-			//sort_seq, (double)sort_seq / (double)total,
-			//count_seq, (double)count_seq / (double)total
-	  //);
-
+	printf("%d,%d,%d\tT:%ld\t"
+			"sort:%ld,%G\t"
+			"search:%ld,%G\n",
+			A_size,
+			B_size,
+			A_size + B_size,
+			total,
+			sort_seq, (double)sort_seq / (double)total,
+			count_seq, (double)count_seq / (double)total
+		  );
 
 	return 0;
-
 }

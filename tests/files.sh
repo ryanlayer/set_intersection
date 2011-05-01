@@ -9,6 +9,8 @@ COUNT_SWEEP_SEQ=$SEQ_BASE/count_sweep_seq
 COUNT_BRUTE_SEQ=$SEQ_BASE/count_brute_force_seq
 COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
 
+COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
+
 #BASE=/home/rl6sf/data/intr
 BASE=$HOME/data/intervals/
 
