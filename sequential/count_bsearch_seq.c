@@ -61,7 +61,6 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
-
 	struct interval_triple *A = (struct interval_triple *)
 			malloc(A_size * sizeof(struct interval_triple));
 	struct interval_triple *A_end = (struct interval_triple *)

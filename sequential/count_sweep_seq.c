@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
-
 	struct triple *AB = (struct triple *)
 			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
 	//A and B points to AB, A to the beging and B to the interior, after A

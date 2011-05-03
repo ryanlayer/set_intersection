@@ -8,6 +8,7 @@ MPI_BASE=$HOME/src/set_intersection/mpi
 COUNT_SWEEP_SEQ=$SEQ_BASE/count_sweep_seq
 COUNT_BRUTE_SEQ=$SEQ_BASE/count_brute_force_seq
 COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
+SIM_BSEARCH_SEQ=$SEQ_BASE/num_sim_bsearch_seq
 
 COUNT_BSEARCH_GM_CUDA=$CUDA_BASE/count_bsearch_gm_cuda
 COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
@@ -32,6 +33,8 @@ TEN_KIL_A=$BASE/hg18/c.aln.10K.fix.bed
 TEN_KIL_B=$BASE/hg18/c.aln.10K.shuff.fix.bed
 KIL_A=$BASE/hg18/c.aln.1K.fix.bed
 KIL_B=$BASE/hg18/c.aln.1K.shuff.fix.bed
+HUND_A=$BASE/hg18/c.aln.100.fix.bed
+HUND_B=$BASE/hg18/c.aln.100.shuff.fix.bed
 
 TINY_U=$BASE/small/oU.bed
 TINY_A=$BASE/small/oA.bed
