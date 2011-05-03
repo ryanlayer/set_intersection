@@ -6,14 +6,25 @@ int compare_interval_pairs_by_start (const void *a, const void *b)
 {
 	struct interval_pair *a_i = (struct interval_pair *)a;
 	struct interval_pair *b_i = (struct interval_pair *)b;
-	return a_i->start - b_i->start;
+	if (a_i->start < b_i->start)
+		return -1;
+	else if (a_i->start > b_i->start)
+		return 1;
+	else
+		return 0;
+
 }
 
 int compare_interval_triples_by_start (const void *a, const void *b)
 {
 	struct interval_triple *a_i = (struct interval_triple *)a;
 	struct interval_triple *b_i = (struct interval_triple *)b;
-	return a_i->start - b_i->start;
+	if (a_i->start < b_i->start)
+		return -1;
+	else if (a_i->start > b_i->start)
+		return 1;
+	else
+		return 0;
 }
 
 int compare_interval_triples_start_to_end (const void *key, const void *b)
@@ -28,7 +39,12 @@ int compare_interval_triples_by_end (const void *a, const void *b)
 {
 	struct interval_triple *a_i = (struct interval_triple *)a;
 	struct interval_triple *b_i = (struct interval_triple *)b;
-	return a_i->end - b_i->end;
+	if (a_i->end < b_i->end)
+		return -1;
+	else if (a_i->end > b_i->end)
+		return 1;
+	else
+		return 0;
 }
 
 int compare_triple_lists (const void *a, const void *b)
