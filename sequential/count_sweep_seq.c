@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 	unsigned long sort_seq = report();
 
 	start();
-	int O = count_intersections_sweep(AB, A_size, B_size);
+	int O = count_intersections_sweep_seq(AB, A_size, B_size);
 	stop();
 	unsigned long count_seq = report();
 

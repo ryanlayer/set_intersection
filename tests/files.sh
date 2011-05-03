@@ -10,6 +10,7 @@ COUNT_BRUTE_SEQ=$SEQ_BASE/count_brute_force_seq
 COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
 
 COUNT_BSEARCH_GM_CUDA=$CUDA_BASE/count_bsearch_gm_cuda
+COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
 
 #BASE=/home/rl6sf/data/intr
 #BASE=$HOME/data/intervals/

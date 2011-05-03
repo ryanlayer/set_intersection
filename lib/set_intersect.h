@@ -51,19 +51,24 @@ int compare_triple_lists (const void *a, const void *b);
 
 int compare_uints (const void *a, const void *b);
 
-int count_intersections_bsearch( unsigned int *A_start,
-								 unsigned int *A_len,
-								 int A_size,
-								 unsigned int *B_start,
-								 unsigned int *B_len,
-								 int B_size );
+int count_intersections_bsearch_seq(struct interval_triple *A, 
+									struct interval_triple *A_end, 
+									int A_size,
+									struct interval_triple *B, 
+									int B_size );
 
-int count_intersections_brute_force( unsigned int *A, 
-							  unsigned int *A_len, 
-							  int A_size,
-							  unsigned int *B, 
-							  unsigned int *B_len,
-							  int B_size );
+int interval_triple_bsearch_end( struct interval_triple *A_end, 
+								 int A_size,
+								 unsigned int key);
+
+int interval_triple_bsearch_start( struct interval_triple *A_start, 
+								   int A_size,
+								   unsigned int key);
+
+int count_intersections_brute_force_seq( struct interval_triple *A_t, 
+										 int A_size,
+										 struct interval_triple *B_t, 
+										 int B_size );
 
 int enumerate_intersections_bsearch( unsigned int *A_start,
 								 unsigned int *A_len,
@@ -73,14 +78,7 @@ int enumerate_intersections_bsearch( unsigned int *A_start,
 								 int B_size,
 								 unsigned int *pairs);
 
-int count_intersections_scan( unsigned int *A, 
-							  unsigned int *A_len, 
-							  int A_size,
-							  unsigned int *B, 
-							  unsigned int *B_len,
-							  int B_size );
-
-int count_intersections_sweep( struct triple *AB, 
+int count_intersections_sweep_seq( struct triple *AB, 
 							   int A_size,
 							   int B_size );
 

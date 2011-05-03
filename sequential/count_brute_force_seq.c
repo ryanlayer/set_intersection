@@ -51,8 +51,6 @@ int main(int argc, char *argv[]) {
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
 
-	int i;
-
 	int A_size, B_size, U_size;
 
 	struct bed_line *U_array, *A_array, *B_array;
@@ -70,17 +68,10 @@ int main(int argc, char *argv[]) {
 	map_to_interval_triple(A_t, A_array, A_size, U_array, U_size, 0 );
 	map_to_interval_triple(B_t, B_array, B_size, U_array, U_size, 1 );
 
-	int j, O = 0;
-
 	start();
-	for (i = 0; i < A_size; i++) {
-		for (j = 0; j < B_size; j++) {
-			if ( ( A_t[i].start <= B_t[j].end ) &&
-				 ( A_t[i].end >= B_t[j].start ) )
-				++O;
-		}
-	}
+	int O = count_intersections_brute_force_seq(A_t, A_size, B_t, B_size );
 	stop();
+
 	unsigned long count_seq = report();
 
 	unsigned long total = count_seq;

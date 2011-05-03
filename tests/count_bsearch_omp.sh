@@ -2,20 +2,19 @@
 
 source $HOME/src/set_intersection/tests/files.sh
 
-SEQ=$HOME/src/set_intersection/sequential
-COUNT_S=count_bsearch_seq
 
-OMP=$HOME/src/set_intersection/omp
-COUNT=count_bsearch_omp
+$COUNT_BSEARCH_OMP $U $KIL_A $KIL_B 1
+$COUNT_BSEARCH_OMP $U $KIL_A $KIL_B 2
 
+$COUNT_BSEARCH_OMP $U $TEN_KIL_A $TEN_KIL_B 1
+$COUNT_BSEARCH_OMP $U $TEN_KIL_A $TEN_KIL_B 2
 
-#$OMP/$COUNT $U $A $B
+$COUNT_BSEARCH_OMP $U $HUND_KIL_A $HUND_KIL_B 1
+$COUNT_BSEARCH_OMP $U $HUND_KIL_A $HUND_KIL_B 2
 
+$COUNT_BSEARCH_OMP $U $MIL_A $MIL_B 1
+$COUNT_BSEARCH_OMP $U $MIL_A $MIL_B 2
 
-#for i in 3 4 5 6
-#for i in 1 2 3 4 5 6
-#do
-	#echo "$OMP/$COUNT $U $A $B 100 $i"
-i=3
-$OMP/$COUNT $U $A $B 1000 $i 
-#done
+$COUNT_BSEARCH_OMP $U $TEN_MIL_A $TEN_MIL_B 1
+$COUNT_BSEARCH_OMP $U $TEN_MIL_A $TEN_MIL_B 2
+
