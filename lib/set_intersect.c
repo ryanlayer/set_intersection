@@ -593,14 +593,6 @@ int count_intersections_bsearch_seq(struct interval_triple *A,
 
 		int num_left = A_size - num_cant_before - num_cant_after;
 
-		fprintf(stderr, "(%u, %u)\t(%u,%u)\ta:%d b:%d\tnum_cant_before:%d\t"
-			   	"num_cant_after:%d\tnum_left:%d\n",
-
-				B[i].start, B[i].end,
-				A[b].start, A_end[a].end,
-				a,b,
-				num_cant_before, num_cant_after, num_left);
-
 		O += num_left;
 	}
 

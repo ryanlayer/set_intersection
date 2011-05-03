@@ -152,30 +152,17 @@ int main(int argc, char *argv[]) {
 				compare_interval_triples_by_end);
 		stop();
 
-		for (i = 0; i < A_size; i++) 
-			fprintf(stderr, "A:\t%u\t%u\n", A[i].start, A[i].end);
-
-		for (i = 0; i < A_size; i++) 
-			fprintf(stderr, "Ae:\t%u\t%u\n", A_end[i].start, A_end[i].end);
-
-		for (i = 0; i < B_size; i++)
-			fprintf(stderr, "B:\t%u\t%u\n", B[i].start, B[i].end);
-
-
-
 		sort_total_time += report();
 
 		start();
 		int r = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
-		int s = count_intersections_brute_force_seq(A, A_size, B, B_size );
 		stop();
 		intersect_total_time += report();
 
-		//fprintf(stderr, "%d\t%d\n", r,s);
+		t+=r;
 		if (r >= O)
 			++x;
 	}
-	printf("\n");
 
 	double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
 	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
@@ -191,8 +178,7 @@ int main(int argc, char *argv[]) {
 			intersect_prop_time = intersect_avg_time/total_avg_time;
 
 
-	printf("m:%u\n",max);
-	fprintf(stderr, "p:%G\tO:%d\tm:%d\n", p, O, t);
+	fprintf(stderr, "p:%G\tO:%d\tm:%G\n", p, O, (double)t / (double)reps);
 			/*
 	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
 			A_size,
