@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <math.h>
+#include <string.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -10,9 +12,16 @@
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
+unsigned int get_rand(unsigned int max, unsigned int mask) {
+	unsigned int rand = (unsigned int)genrand_int32() & mask;
+	while (rand > max) 
+		rand = (unsigned int)genrand_int32() & mask;
+	return rand;
+}
+
 int main(int argc, char *argv[]) {
 	if (argc < 4) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
+		fprintf(stderr, "usage: %s <u> <a> <b> <N>\n", argv[0]);
 		return 1;
 	}
 
@@ -41,8 +50,9 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	int max = add_offsets(U_list, chrom_num);
-
+	unsigned int max = add_offsets(U_list, chrom_num);
+	unsigned int bits = (int)( ceil(log(max)/log(2) ) );
+	unsigned int mask = (2 << (bits-1)) - 1;
 
 	if (max == 0) {
 		fprintf(stderr, "Max is zero.\n");
@@ -66,115 +76,102 @@ int main(int argc, char *argv[]) {
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
 
-	// make one large array to hold these
-	/* 
-	 * We need to put both A and B into a single array then sort it
-	 *
-	 * Each interval becomes a triple: 
-	 *   key:  offset
-	 *   sample:  A (0) or B (1)
-	 *   type:  start (0) or  end (1)
-	 *   rank: order within
-	 *
-	 */
-	struct triple *AB = (struct triple *)
-			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
-	//A and B points to AB, A to the beging and B to the interior, after A
-	struct triple *A = AB;
-	struct triple *B = AB + 2*A_size;
+	struct interval_triple *A = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
+	struct interval_triple *A_end = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
 
-	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
-	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
+	struct interval_triple *B = (struct interval_triple *)
+			malloc(B_size * sizeof(struct interval_triple));
 
-	// sort A and B so they can be ranked
-	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
-	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
+	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
+
+
+	// sort A so it can be searched by start
+	start();
+	qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
 	unsigned int *B_len = (unsigned int *) malloc(
 			B_size * sizeof(unsigned int));
 
-	unsigned int *A_start = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_start = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
-
 	// Set sized
 	for (i = 0; i < A_size; i++)
-		A_start[i] = A[i*2].key;
+		A_len[i] = A[i].end - A[i].start;
 	for (i = 0; i < B_size; i++) 
-		B_start[i] = B[i*2].key;
+		B_len[i] = B[i].end - B[i].start;
 
-	// Get lengthsrank = i/2;
-	for (i = 0; i < A_size; i++)
-		A_len[i] = A[i*2 + 1].key - A[i*2].key;
-	for (i = 0; i < B_size; i++)
-		B_len[i] = B[i*2 + 1].key - B[i*2].key;
+	memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+	qsort(A_end, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_end);
+	stop();
+	unsigned long sort_seq = report();
 
+	start();
+	int O = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
+	stop();
+	unsigned long count_seq = report();
 
-	int O = count_intersections_bsearch(
-			A_start, A_len, A_size,
-			B_start, B_len, B_size );
-
-	//init_genrand((unsigned) time(NULL));
-	init_genrand(12);
+	init_genrand((unsigned) time(NULL));
+	//init_genrand(2);
 
 	unsigned long rand_total_time = 0,
 				  sort_total_time = 0,
 				  intersect_total_time = 0;
 
-	int j, x = 0;
+	int j, x = 0, t = 0;
 	for (j = 0; j < reps; j++) {
 
 		start();
 		for (i = 0; i < A_size; i++)
-			//A_start[i] = genrand_int32() % max;
-			A_start[i] = genrand_int32();
-		for (i = 0; i < B_size; i++) 
-			B_start[i] = genrand_int32();
-			//B_start[i] = genrand_int32() % max;
+			A[i].start = get_rand(max, mask);
+
+		for (i = 0; i < B_size; i++)
+			B[i].start = get_rand(max, mask);
 		stop();
-		//printf("r:%ld\t", report());
 		rand_total_time += report();
 
 		start();
-		qsort(A_start, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_start, B_size, sizeof(unsigned int), compare_uints);
+		qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+		qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+
+		for (i = 0; i < A_size; i++) 
+			A[i].end = A[i].start + A_len[i];
+		for (i = 0; i < B_size; i++)
+			B[i].end = B[i].start + B_len[i];
+
+		memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+		qsort(A_end, A_size, sizeof(struct interval_triple),
+				compare_interval_triples_by_end);
 		stop();
 
-		/*
-		for (i = 0; i < A_size; i++)
-			printf("A:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		for (i = 0; i < B_size; i++) 
-			printf("B:%u\t%u\n", A_start[i], A_start[i] + A_len[i]);
-		*/
+		for (i = 0; i < A_size; i++) 
+			fprintf(stderr, "A:\t%u\t%u\n", A[i].start, A[i].end);
+
+		for (i = 0; i < A_size; i++) 
+			fprintf(stderr, "Ae:\t%u\t%u\n", A_end[i].start, A_end[i].end);
+
+		for (i = 0; i < B_size; i++)
+			fprintf(stderr, "B:\t%u\t%u\n", B[i].start, B[i].end);
 
 
-		//printf("s:%ld\t", report());
+
 		sort_total_time += report();
 
 		start();
-
-		int r = count_intersections_bsearch(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-
-		int t = count_intersections_scan(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-
-		int u = count_intersections_brute_force(
-				A_start, A_len, A_size,
-				B_start, B_len, B_size );
-
-
-		printf("%d,%d,%d\t", r,t,u);
-
+		int r = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
+		int s = count_intersections_brute_force_seq(A, A_size, B, B_size );
 		stop();
-		//printf("i:%ld\t", report());
 		intersect_total_time += report();
 
+		//fprintf(stderr, "%d\t%d\n", r,s);
 		if (r >= O)
 			++x;
 	}
@@ -193,7 +190,10 @@ int main(int argc, char *argv[]) {
 			sort_prop_time = sort_avg_time/total_avg_time,
 			intersect_prop_time = intersect_avg_time/total_avg_time;
 
-	/*
+
+	printf("m:%u\n",max);
+	fprintf(stderr, "p:%G\tO:%d\tm:%d\n", p, O, t);
+			/*
 	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
 			A_size,
 			B_size,
@@ -202,7 +202,6 @@ int main(int argc, char *argv[]) {
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
-	*/
+			*/
 	return 0;
-
 }

@@ -3,15 +3,14 @@ AR=ar
 #CFLAGS= -Wall -g -O3 
 CFLAGS= -Wall -g
 #CFLAGS= -Wall -Wno-deprecated -g
-LDFLAGS= -lgsl -lgslcblas -lm 
+#LDFLAGS= -lgsl -lgslcblas -lm 
+LDFLAGS= -lm 
 
-EXECS=order_seq bsearch_seq get_rank_pairs get_maped_intervals \
-	  scan_seq count_brute_force_seq num_sim_bsearch_seq \
+EXECS=order_seq get_rank_pairs get_maped_intervals \
+	  count_brute_force_seq num_sim_bsearch_seq \
 	  enumerate_bsearch_seq \
 	  count_bsearch_seq \
-	  count_scan_seq \
 	  count_sweep_seq \
-	  num_sim_scan_seq \
 	  s_e_list \
 	  nc_list 
 
@@ -24,25 +23,13 @@ OBJS=$(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS) $(MT_OBJS)
 
 all: $(EXECS)
 
-bsearch_seq: bsearch_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS)
-	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS) $(TIMER_OBJS)
-
-scan_seq: scan_seq.o $(BED_FILE_OBJS) $(SET_FILE_OBJS)
-	$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
-
-num_sim_scan_seq: num_sim_scan_seq.o $(OBJS) 
-	$(CC) -o $@  $< $(OBJS)
-
 num_sim_bsearch_seq: num_sim_bsearch_seq.o $(OBJS) 
-	$(CC) -o $@  $< $(OBJS)
+	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
 
 count_bsearch_seq: count_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
 count_sweep_seq: count_sweep_seq.o $(OBJS) 
-	$(CC) -o $@  $< $(OBJS)
-
-count_scan_seq: count_scan_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
 enumerate_bsearch_seq: enumerate_bsearch_seq.o $(OBJS) 
