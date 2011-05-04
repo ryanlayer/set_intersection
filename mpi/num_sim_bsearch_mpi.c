@@ -3,6 +3,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <mpi.h>
+#include <math.h>
+#include <string.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -12,17 +14,34 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
 int main(int argc, char *argv[]) {
+	MPI_Status status;
+	int rank, size, seen, buf;
+
+	MPI_Init (&argc, &argv);    /* starts MPI */
+	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
+	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
+
 	if (argc < 5) {
 		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N>\n");
 		return 1;
 	}
 
-	MPI_Status status;
-	int rank, size;
+	unsigned long seed = 0;
 
-	MPI_Init (&argc, &argv);    /* starts MPI */
-	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
+	start();
+	if (rank == 0) {
+		seed = (unsigned long) time(NULL);
+		int j;
+		for (j = 1; j < size; j++)
+			MPI_Send(&seed, 1, MPI_UNSIGNED, j, 0, MPI_COMM_WORLD);
+
+	} else {
+		MPI_Recv(&seed, 1, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD, &status);
+	}
+
+	fprintf(stderr, "r:%d\ts:%lu\n", rank, seed);
+
+	init_genrand(seed + rank);
 
 	int chrom_num = 24;
 
@@ -48,19 +67,17 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-	int max = add_offsets(U_list, chrom_num);
-
+	unsigned int max = add_offsets(U_list, chrom_num);
+	unsigned int bits = (int)( ceil(log(max)/log(2) ) );
+	unsigned int mask = (2 << (bits-1)) - 1;
 
 	if (max == 0) {
 		fprintf(stderr, "Max is zero.\n");
 		return 1;
 	}
 
-
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
-
 
 	int i;
 
@@ -73,102 +90,70 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
+	struct interval_triple *A = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
+	struct interval_triple *A_end = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
 
-	// make one large array to hold these
-	/* 
-	 * We need to put both A and B into a single array then sort it
-	 *
-	 * Each interval becomes a triple: 
-	 *   key:  offset
-	 *   sample:  A (0) or B (1)
-	 *   type:  start (0) or  end (1)
-	 *   rank: order within
-	 *
-	 */
-	struct triple *AB = (struct triple *)
-			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
-	//A and B points to AB, A to the beging and B to the interior, after A
-	struct triple *A = AB;
-	struct triple *B = AB + 2*A_size;
+	struct interval_triple *B = (struct interval_triple *)
+			malloc(B_size * sizeof(struct interval_triple));
 
-	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
-	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
+	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
+	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
 
-	// sort A and B so they can be ranked
-	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
-	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	// sort A so it can be searched by start
+	qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
 	unsigned int *B_len = (unsigned int *) malloc(
 			B_size * sizeof(unsigned int));
 
-	unsigned int *A_start = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_start = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
-
 	// Set sized
 	for (i = 0; i < A_size; i++)
-		A_start[i] = A[i*2].key;
+		A_len[i] = A[i].end - A[i].start;
 	for (i = 0; i < B_size; i++) 
-		B_start[i] = B[i*2].key;
+		B_len[i] = B[i].end - B[i].start;
 
-	// Get lengthsrank = i/2;
-	for (i = 0; i < A_size; i++)
-		A_len[i] = A[i*2 + 1].key - A[i*2].key;
-	for (i = 0; i < B_size; i++)
-		B_len[i] = B[i*2 + 1].key - B[i*2].key;
+	memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+	qsort(A_end, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_end);
+
+	int O = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
 
 
-	unsigned int O = count_intersections_bsearch(
-			A_start, A_len, A_size,
-			B_start, B_len, B_size );
+	int j, x = 0;
+	for (j = 0; j < (reps / size); j++) {
+		for (i = 0; i < A_size; i++)
+			A[i].start = get_rand(max, mask);
 
-	init_genrand((unsigned) time(NULL) + rank);
+		for (i = 0; i < B_size; i++)
+			B[i].start = get_rand(max, mask);
 
-	int x = 0, j;
+		qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+		qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
 
-	unsigned int *A_rand = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_rand = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
+		for (i = 0; i < A_size; i++) 
+			A[i].end = A[i].start + A_len[i];
+		for (i = 0; i < B_size; i++)
+			B[i].end = B[i].start + B_len[i];
 
-	for (j = 0; j < (reps / size) + 1; j++) {
-		//start();
-		int k;
-		for (k = 0; k < A_size; k++)
-			A_rand[k] = genrand_int32() % max;
-		for (k = 0; k < B_size; k++) 
-			B_rand[k] = genrand_int32() % max;
-		//stop();
-		//printf("r:%ld\t", report());
-		//rand_total_time += report();
-
-		//start();
-		qsort(A_rand, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_rand, B_size, sizeof(unsigned int), compare_uints);
-		//stop();
-		//printf("s:%ld\t", report());
-		//sort_total_time += report();
-
-		//start();
-		unsigned int r = count_intersections_bsearch(
-				A_rand, A_len, A_size,
-				B_rand, B_len, B_size );
-		//stop();
-
-		//printf("i:%ld\t", report());
-		//intersect_total_time += report();
-		//
-		//printf("i:%d\tr:%u\n", rank, r);
+		memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+		qsort(A_end, A_size, sizeof(struct interval_triple),
+				compare_interval_triples_by_end);
+		int r = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
 
 		if (r >= O)
 			++x;
 	}
 
 	if (rank == 0) {
-		int seen = 0, buf;
+		seen = 0;
 		printf("%d\tgot:%u\tfrom:%d\n", rank, x, rank);
 		while (seen < (size - 1)) {
 			MPI_Recv(&buf, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 0,
@@ -179,12 +164,14 @@ int main(int argc, char *argv[]) {
 					x);
 		}
 
-		double p = ((double)x + 1) / ((double)reps + 1);
+		double p = ((double)x + 1) / (double)(reps/size * size );
 		printf("O:%d\tp:%f\n", O, p);
 	} else {
 		MPI_Send(&x, 1, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
 	}
 
+	stop();
+	printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, B_size, A_size + B_size, report(),rank);
 	MPI_Finalize();
 
 	return 0;

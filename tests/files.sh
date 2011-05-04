@@ -16,6 +16,8 @@ SIM_BSEARCH_GM_CUDA=$CUDA_BASE/num_sim_bsearch_gm_cuda
 COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
 SIM_BSEARCH_OMP=$OMP_BASE/num_sim_bsearch_omp
 
+SIM_BSEARCH_MPI=$MPI_BASE/num_sim_bsearch_mpi
+
 #BASE=/home/rl6sf/data/intr
 #BASE=$HOME/data/intervals/
 BASE=/bigtemp/rl6sf/interval/

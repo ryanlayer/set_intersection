@@ -2,7 +2,7 @@ CC=mpicc
 AR=ar
 CFLAGS= -Wall -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
-LDFLAGS= -lgsl -lgslcblas -lm 
+LDFLAGS= -lm 
 
 EXECS=order_mpi num_sim_bsearch_mpi
 
@@ -19,7 +19,7 @@ all: $(EXECS)
 	#$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 num_sim_bsearch_mpi: num_sim_bsearch_mpi.o $(OBJS)
-	$(CC) -o $@  $< $(OBJS)
+	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $@
