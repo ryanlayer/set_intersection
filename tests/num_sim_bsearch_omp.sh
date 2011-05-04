@@ -3,10 +3,11 @@
 source $HOME/src/set_intersection/tests/files.sh
 
 REPS=1000
+RANGE=8
 
 function run {
 
-for i in 1 2 3 4 5 6 7 8
+for i in $RANGE
 do
 	echo $i
 	$SIM_BSEARCH_OMP $1 $2 $3 $4 $i

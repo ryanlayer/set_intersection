@@ -11,7 +11,10 @@ COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
 SIM_BSEARCH_SEQ=$SEQ_BASE/num_sim_bsearch_seq
 
 COUNT_BSEARCH_GM_CUDA=$CUDA_BASE/count_bsearch_gm_cuda
+SIM_BSEARCH_GM_CUDA=$CUDA_BASE/num_sim_bsearch_gm_cuda
+
 COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
+SIM_BSEARCH_OMP=$OMP_BASE/num_sim_bsearch_omp
 
 #BASE=/home/rl6sf/data/intr
 #BASE=$HOME/data/intervals/
@@ -20,6 +23,8 @@ BASE=/bigtemp/rl6sf/interval/
 U=$BASE/hg18/hg19.bed
 A=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksGm12878H3k27me3.broadPeak.bed
 B=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksGm12878H3k4me3.broadPeak.bed
+A_a=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12878H3k27me3.broadPeak.bed
+A_b=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12878H3k27me3.broadPeak.bed
 BIGA=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12865Ctcf.broadPeak.bed
 BIGB=$BASE/hg18/UW/wgEncodeUwChIPSeqHotspotsRep1Gm12865Ctcf.broadPeak.bed
 SIMPLE_REPEATS=$BASE/hg18/simple_repeats.bed

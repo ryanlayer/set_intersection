@@ -96,4 +96,11 @@ void count_bsearch_cuda (	unsigned int *A_start,
 							int B_size,
 							unsigned int *R,
 							int n);
+
+__global__
+void set_end( unsigned int *start,
+			  unsigned int *end,
+			  unsigned int *len,
+			  int size);
+
 #endif

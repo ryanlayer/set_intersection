@@ -570,3 +570,17 @@ void count_bsearch_cuda (	unsigned int *A_start,
 	}
 }
 //}}}
+
+//{{{ __global__ void normalize_rand(unsigned int *setd, unsigned int max, int
+__global__
+void set_end( unsigned int *start,
+			  unsigned int *end,
+			  unsigned int *len,
+			  int size)
+{
+	int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	if (id < (size)) 
+		end[id] = start[id] + len[id];
+}
+//}}}

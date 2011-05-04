@@ -580,8 +580,10 @@ int count_intersections_bsearch_seq(struct interval_triple *A,
 		//int end_pos = MIN(A_size - 1,b);
 
 
+		/*
 		while ( ( A_end[a].end == B[i].start ) && (a > 0))
 			--a;
+		*/
 
 		int num_cant_before = a; 
 

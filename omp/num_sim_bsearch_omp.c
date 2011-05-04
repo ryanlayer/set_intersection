@@ -135,6 +135,9 @@ int main(int argc, char *argv[]) {
 	int flag[n];
 	bzero(flag, n * sizeof(int));
 
+	unsigned int t[n];
+	bzero(t, n * sizeof(unsigned int));
+
 	unsigned long *mt_r;
 	int mti_r;
 
@@ -193,25 +196,26 @@ int main(int argc, char *argv[]) {
 		//stop();
 		//intersect_total_time_p[th_id] += report();
 
+		t[th_id] += r;
 		if (r >= O)
 			x[th_id] = x[th_id] + 1;		
 	}
+	stop();
 
 	int X = 0;
 
 	for (i = 0; i < n; i++)
 		X += x[i];
 
-	stop();
+	unsigned int all_t = 0;
+	for (i = 0; i < n; i++)
+		all_t += t[i];
+
 
 	double p = ( (double)(X + 1) ) / ( (double)(reps + 1) );
 
-	fprintf(stderr, "p:%G\tO:%d\n", p, O);
-	printf("%d,%d,%d\tt:%lu\n",
-			A_size,
-			B_size,
-			A_size + B_size,
-			report());
+	fprintf(stderr, "O:%d\tp:%G\tE:%G\n", O, p, (double)all_t/(double)reps);
+	printf("%d,%d,%d\tt:%lu\n", A_size, B_size, A_size + B_size, report());
 
 	/*
 	unsigned long rand_total_time_t = 0, 

@@ -18,16 +18,18 @@ int main(int argc, char *argv[]) {
 
 
 	if (argc < 6) {
-		fprintf(stderr, "usage: order <u> <a> <b> <reps> <inter N> <sum N>\n"
-						"e.g., order U.bed A.bed B.bed 10000 1 1024\n");
-		return 1;
+			fprintf(stderr, "usage: %s <u> <a> <b> <N> "
+					"<intersect N> <sum N> <device>\n"
+					"e.g., order U.bed A.bed B.bed 1 1024 0\n",
+					argv[0]);
+			return 1;
 	}
 
-	fprintf(stderr, "*");
-	cudaFree(NULL);
-	fprintf(stderr, "*");
-
 	int chrom_num = 24;
+
+	//CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[6] ) ) );
+	CUDA_SAFE_CALL( cudaFree(NULL) );
+
 
 	/***********************REPLACE WITH INPUT FILE************************/	
 	char *chrom_names[] = {
@@ -64,206 +66,241 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A, &A_array, chrom_num);
 	B_size = chr_array_from_list(B, &B_array, chrom_num);
 
-	unsigned int *A_key_h = 
-		(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
-	unsigned int *A_val_h = 
-		(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
-
-	unsigned int *B_key_h = 
-		(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-	unsigned int *B_val_h = 
-		(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-
-
-	/*
-	 * In CUDA we can sort key value pairs, 
-	 * the key can be the offset, and the value can be the length
-	 */
-	set_start_len( U_array, U_size,
-				   A_array, A_key_h, A_val_h, A_size );
-
-	set_start_len( U_array, U_size,
-				   B_array, B_key_h, B_val_h, B_size );
-
-	// Move A and B to deviceB
-	unsigned int *A_key_d, *A_val_d, *B_key_d, *B_val_d;
-	cudaMalloc((void **)&A_key_d, (A_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&A_val_d, (A_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_key_d, (B_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_val_d, (B_size)*sizeof(unsigned int));
-
 	start();
-	cudaMemcpy(A_key_d, A_key_h, (A_size) * sizeof(unsigned int), 
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(A_val_d, A_val_h, (A_size) * sizeof(unsigned int),
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_key_d, B_key_h, (B_size) * sizeof(unsigned int), 
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_val_d, B_val_h, (B_size) * sizeof(unsigned int),
-			cudaMemcpyHostToDevice);
-	stop();
-
-	unsigned long memup_time = report();
 
 	int block_size = 256;
 	dim3 dimBlock(block_size);
+
+	int grid_size = ( A_size + block_size - 1) / (block_size * 1);
+	dim3 dimGridSearch( grid_size );
+
+	cudaError_t err;
+	dim3 dimGridAR( ceil(float(A_size)/float(dimBlock.x)));
+	dim3 dimGridBR( ceil(float(B_size)/float(dimBlock.x)));
+
+	unsigned int *A_start_h =
+			(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
+	unsigned int *A_len_h =
+			(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
+	unsigned int *B_start_h =
+			(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
+	//unsigned int *B_end_h =
+			//(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
+	unsigned int *B_len_h =
+			(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
+
+    /*
+	 * In CUDA we can sort key value pairs, 
+	 * the key can be the offset, and the value can be the length
+	 */
+	set_start_len( U_array, U_size, A_array, A_start_h, A_len_h, A_size );
+	//set_start_end( U_array, U_size, B_array, B_start_h, B_end_h, B_size );
+	set_start_len( U_array, U_size, B_array, B_start_h, B_len_h, B_size );
+
+	// Move A and B to deviceB
+	unsigned int *A_start_d, *A_len_d, *B_start_d, *B_end_d, *B_len_d;
+	cudaMalloc((void **)&A_start_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&A_len_d, (A_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_start_d, (B_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_len_d, (B_size)*sizeof(unsigned int));
+	cudaMalloc((void **)&B_end_d, (B_size)*sizeof(unsigned int));
+
+	cudaMemcpy(A_start_d, A_start_h, (A_size) * sizeof(unsigned int), 
+			cudaMemcpyHostToDevice);
+	cudaMemcpy(A_len_d, A_len_h, (A_size) * sizeof(unsigned int),
+			cudaMemcpyHostToDevice);
+	cudaMemcpy(B_start_d, B_start_h, (B_size) * sizeof(unsigned int), 
+			cudaMemcpyHostToDevice);
+	cudaMemcpy(B_len_d, B_len_h, (B_size) * sizeof(unsigned int),
+			cudaMemcpyHostToDevice);
+
+	set_end <<<dimGridBR, dimBlock>>> (B_start_d, B_end_d, B_len_d, B_size);
+
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "Set end B: %s.\n", cudaGetErrorString( err) );
+
 
 	// R will hold the results of the intersection, for each interval A[i],
 	// R[i] will be the number of intervals in B that A[i] intersects,
 	unsigned int *R_d;
 	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
+	//unsigned long memup_time = report();
 
-	// *_key_d holds the start position, and *_val_d holds the length,
-	// the end position is *_key_d + *_val_d
-	//
-	// Each thread will search |reps| items in A, we will keep the blocksize
-	// fixed at 256, but we will need to adjust the grid size 
-	
-	int grid_size = ( A_size + block_size - 1) / (block_size * 1);
-	dim3 dimGridSearch( grid_size );
-
-	cudaError_t err;
 
 	// Sort A
-	nvRadixSort::RadixSort radixsortA(A_size, false);
-	radixsortA.sort((unsigned int*)A_key_d, (unsigned int*)A_val_d, 
+	nvRadixSort::RadixSort radixsortA_start(A_size, true);
+	/*
+	radixsortA_start.sort((unsigned int*)A_start_d, (unsigned int*)A_len_d, 
 			A_size, 32);
+	*/
+	// Sort B by start
+	nvRadixSort::RadixSort radixsortB_start(B_size, true);
+	radixsortB_start.sort((unsigned int*)B_start_d, 0, B_size, 32);
 
-	// Sort B
-	nvRadixSort::RadixSort radixsortB(B_size, false);
-	radixsortB.sort((unsigned int*)B_key_d, (unsigned int*)B_val_d, 
-			B_size, 32);
+	// Sort B by end
+	nvRadixSort::RadixSort radixsortB_end(B_size, true);
+	radixsortB_end.sort((unsigned int*)B_end_d, 0, B_size, 32);
+
 	cudaThreadSynchronize();
-	stop();
-
-	unsigned int *R_h = (unsigned int *) malloc( A_size * sizeof(unsigned int));
-
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
 		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
 
-	start();
-	intersection_b_search <<<dimGridSearch, 
-							dimBlock >>> ( A_key_d, A_val_d, A_size,
-										   B_key_d, B_val_d, B_size,
-										   R_d, 1);
+	count_bsearch_cuda <<<dimGridSearch, dimBlock >>> (
+			A_start_d, A_len_d, A_size,
+			B_start_d, B_end_d, B_size,
+			R_d,
+			1);
 
 	cudaThreadSynchronize();
-	stop();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "Search: %s.\n", cudaGetErrorString( err) );
 
 	parallel_sum(R_d, block_size, A_size, sum_threads);
 
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "Sum: %s.\n", cudaGetErrorString( err) );
 
 	unsigned int O;
-	start();
 	cudaMemcpy(&O, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-	stop();
-	unsigned long memdown_time = report();
-
-
-	cudaFree(A_key_d);
-	cudaFree(B_key_d);
 
 	srand(time(NULL));	
 
-	RNG_rand48 A_r(rand());
-	RNG_rand48 B_r(rand());
-	dim3 dimGridAR( ceil(float(A_size)/float(dimBlock.x)));
-	dim3 dimGridBR( ceil(float(B_size)/float(dimBlock.x)));
-	nvRadixSort::RadixSort radixsortAR(A_size, true);
-	nvRadixSort::RadixSort radixsortBR(B_size, true);
+	RNG_rand48 A_start_r(rand());
+	RNG_rand48 B_start_r(rand());
 
-	int i,r = 0;
-	unsigned int R;
-	unsigned int *A_r_d, *B_r_d;
+	unsigned int *A_start_r_d, *B_start_r_d;
+	unsigned int R, t=0;
 
-	unsigned long rand_total_time = 0,
-				  sort_total_time = 0,
-				  intersect_total_time = 0;
-
+	int i, r = 0;
 	for  (i = 0; i < reps; i ++) {
-		start();
-		A_r.generate(A_size);
+		A_start_r.generate(A_size);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "Rand A: %s.\n", cudaGetErrorString( err) );
 
-
-		B_r.generate(B_size);
+		B_start_r.generate(B_size);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "Rand B: %s.\n", cudaGetErrorString( err) );
 
-		A_r_d = (unsigned int *)A_r.get_random_numbers();
-		B_r_d = (unsigned int *)B_r.get_random_numbers();
+		A_start_r_d = (unsigned int *)A_start_r.get_random_numbers();
+		B_start_r_d = (unsigned int *)B_start_r.get_random_numbers();
 
-		normalize_rand <<<dimGridAR, dimBlock>>> (A_r_d, max, A_size);
+		normalize_rand <<<dimGridAR, dimBlock>>> (A_start_r_d, max, A_size);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "Norm A: %s.\n", cudaGetErrorString( err) );
 
-		normalize_rand <<<dimGridBR, dimBlock>>> (B_r_d, max, B_size);
+		normalize_rand <<<dimGridBR, dimBlock>>> (B_start_r_d, max, B_size);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
 			fprintf(stderr, "Norm B: %s.\n", cudaGetErrorString( err) );
-		stop();
-		//printf("r:%ld\t", report());
-		rand_total_time += report();
 
-		start();
-		radixsortAR.sort((unsigned int*)A_r_d, 0, A_size, 32);
+		radixsortA_start.sort((unsigned int*)A_start_r_d, 0, A_size, 32);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
-			fprintf(stderr, "Sort A: %s.\n", cudaGetErrorString( err) );
+			fprintf(stderr, "Sort start A: %s.\n", cudaGetErrorString( err) );
 
-		radixsortBR.sort((unsigned int*)B_r_d, 0, B_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort B: %s.\n", cudaGetErrorString( err) );
-		stop();
-		//printf("s:%ld\t", report());
-		sort_total_time += report();
-
-		intersection_b_search <<<dimGridSearch, 
-							dimBlock >>> ( A_r_d, A_val_d, A_size,
-										   B_r_d, B_val_d, B_size,
-										   R_d, inter_threads);
+		radixsortB_start.sort((unsigned int*)B_start_r_d, 0, B_size, 32);
 
 		cudaThreadSynchronize();
 		err = cudaGetLastError();
 		if(err != cudaSuccess)
-			fprintf(stderr, "intersect search: %s.\n", 
-					cudaGetErrorString(err) );
+			fprintf(stderr, "Sort start B: %s.\n", cudaGetErrorString( err) );
 
-		start();
-		parallel_sum( R_d, block_size, A_size, sum_threads);
+		set_end <<<dimGridBR, dimBlock>>> (B_start_r_d, B_end_d, B_len_d, 
+				B_size);
+
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "Set end B: %s.\n", cudaGetErrorString( err) );
+
+		radixsortB_end.sort((unsigned int*)B_end_d, 0, B_size, 32);
+
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "Sort start B: %s.\n", cudaGetErrorString( err) );
+		/*
+
+		unsigned int *A_start_t = (unsigned int *)
+				malloc(A_size * sizeof(unsigned int));
+		unsigned int *B_start_t = (unsigned int *)
+				malloc(B_size * sizeof(unsigned int));
+		unsigned int *B_end_t = (unsigned int *)
+				malloc(B_size * sizeof(unsigned int));
+		unsigned int *B_len_t = (unsigned int *)
+				malloc(B_size * sizeof(unsigned int));
+
+		cudaMemcpy(A_start_t, A_start_r_d, A_size * sizeof(unsigned int),
+				cudaMemcpyDeviceToHost);
+		cudaMemcpy(B_start_t, B_start_r_d, B_size * sizeof(unsigned int),
+				cudaMemcpyDeviceToHost);
+		cudaMemcpy(B_end_t, B_end_d, B_size * sizeof(unsigned int), 
+				cudaMemcpyDeviceToHost);
+		cudaMemcpy(B_len_t, B_len_d, B_size * sizeof(unsigned int), 
+				cudaMemcpyDeviceToHost);
+
+		int z;
+		for (z = 0; (z < B_size) && (z < A_size); z++)
+			printf("s:%u\ts:%u\tl:%u\te:%u\n",
+					A_start_t[z],B_start_t[z], B_end_t[z], B_len_t[z]);
+
+
+
+		*/
+
+
+		count_bsearch_cuda <<<dimGridSearch, dimBlock >>> (
+				A_start_r_d, A_len_d, A_size,
+				B_start_r_d, B_end_d, B_size,
+				R_d,
+				1);
+
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "Search: %s.\n", cudaGetErrorString( err) );
+
+		parallel_sum(R_d, block_size, A_size, sum_threads);
+
+		cudaThreadSynchronize();
+		err = cudaGetLastError();
+		if(err != cudaSuccess)
+			fprintf(stderr, "Sum: %s.\n", cudaGetErrorString( err) );
 
 		cudaMemcpy(&R, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-		stop();
-		//printf("i:%ld\t", report());
-		intersect_total_time += report();
-
-		//printf("%u\n", R);
 		
+		//fprintf(stderr, "%u\n", R);
+		t+=R;
 		if (R >= O)
 			++r;
 	}
 
+	stop();
 
 	double p = ( (double)(r + 1) ) / ( (double)(reps + 1) );
-	fprintf(stderr,"O:%d\tp:%f\n", O, p);
+	fprintf(stderr,"O:%d\tp:%G\tE:%G\n", O, p,(double)t/(double)reps);
+	printf("%d,%d,%d\tt:%lu\n", A_size, B_size, A_size + B_size, report());
+
+	/*
 
 	double  rand_avg_time = ( (double) rand_total_time) / reps,
 			sort_avg_time = ( (double) sort_total_time) / reps,
@@ -275,13 +312,11 @@ int main(int argc, char *argv[]) {
 			sort_prop_time = sort_avg_time/total_avg_time,
 			intersect_prop_time = intersect_avg_time/total_avg_time;
 
-	/*
 	printf("t:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
 			total_avg_time,
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
-	*/
 
 	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
 			A_size,
@@ -294,9 +329,13 @@ int main(int argc, char *argv[]) {
 			sort_prop_time,
 			intersect_avg_time,
 			intersect_prop_time);
+	*/
 
-	cudaFree(A_key_d);
-	cudaFree(B_key_d);
+	cudaFree(A_start_d);
+	cudaFree(A_len_d);
+	cudaFree(B_start_d);
+	cudaFree(B_len_d);
+	cudaFree(B_end_d);
 	cudaFree(R_d);
 
 	return 0;

@@ -139,8 +139,6 @@ int main(int argc, char *argv[]) {
 	stop();
 	unsigned long sort_time = report();
 
-	unsigned int *R_h = (unsigned int *) malloc( A_size * sizeof(unsigned int));
-
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
 		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
