@@ -12,12 +12,14 @@
 
 #define MIN(a,b) ((a)>(b)?(b):(a))
 
+/*
 unsigned int get_rand(unsigned int max, unsigned int mask) {
 	unsigned int rand = (unsigned int)genrand_int32() & mask;
 	while (rand > max) 
 		rand = (unsigned int)genrand_int32() & mask;
 	return rand;
 }
+*/
 
 int main(int argc, char *argv[]) {
 	if (argc < 4) {
@@ -75,7 +77,6 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
-
 	struct interval_triple *A = (struct interval_triple *)
 			malloc(A_size * sizeof(struct interval_triple));
 	struct interval_triple *A_end = (struct interval_triple *)
@@ -86,7 +87,6 @@ int main(int argc, char *argv[]) {
 
 	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
 	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
-
 
 	// sort A so it can be searched by start
 	start();
@@ -179,7 +179,6 @@ int main(int argc, char *argv[]) {
 
 
 	fprintf(stderr, "p:%G\tO:%d\tm:%G\n", p, O, (double)t / (double)reps);
-			/*
 	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
 			A_size,
 			B_size,
@@ -188,6 +187,5 @@ int main(int argc, char *argv[]) {
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
-			*/
 	return 0;
 }

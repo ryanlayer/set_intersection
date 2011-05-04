@@ -2,7 +2,8 @@ CC=gcc
 AR=ar
 CFLAGS= -fopenmp -Wall -g -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
-LDFLAGS= -lgsl -lgslcblas -lm 
+#LDFLAGS= -lgsl -lgslcblas -lm 
+LDFLAGS= -lm 
 
 EXECS= num_sim_bsearch_omp \
 	  enumerate_bsearch_omp \
@@ -20,10 +21,10 @@ OBJS=$(BED_FILE_OBJS) $(SET_FILE_OBJS) $(SET_OMP_FILE_OBJS) $(TIMER_OBJS) \
 all: $(EXECS)
 
 num_sim_bsearch_omp: num_sim_bsearch_omp.o $(OBJS) 
-	$(CC) -fopenmp -o $@  $< $(OBJS)
+	$(CC) -fopenmp -o $@  $< $(OBJS) $(LDFLAGS)
 
 count_bsearch_omp: count_bsearch_omp.o $(OBJS) 
-	$(CC) -fopenmp -o $@  $< $(OBJS)
+	$(CC) -fopenmp -o $@  $< $(OBJS) $(LDFLAGS)
 
 enumerate_bsearch_omp: enumerate_bsearch_omp.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)

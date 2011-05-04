@@ -3,6 +3,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <omp.h>
+#include <string.h>
+#include <math.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
@@ -13,7 +15,7 @@
 
 int main(int argc, char *argv[]) {
 	if (argc < 5) {
-		fprintf(stderr, "usage: num_sim_scan_seq <u> <a> <b> <N> <p>\n");
+		fprintf(stderr, "usage: %s <u> <a> <b> <N> <p>\n", argv[0]);
 		return 1;
 	}
 
@@ -31,7 +33,7 @@ int main(int argc, char *argv[]) {
 
 	char *U_file = argv[1], *A_file = argv[2], *B_file = argv[3];
 	int reps = atoi(argv[4]);
-	int p = atoi(argv[5]);
+	int n = atoi(argv[5]);
 
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, chrom_num, U_file) == 1) ||
@@ -42,19 +44,17 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-	int max = add_offsets(U_list, chrom_num);
-
+	unsigned int max = add_offsets(U_list, chrom_num);
+	unsigned int bits = (int)( ceil(log(max)/log(2) ) );
+	unsigned int mask = (2 << (bits-1)) - 1;
 
 	if (max == 0) {
 		fprintf(stderr, "Max is zero.\n");
 		return 1;
 	}
 
-
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
-
 
 	int i;
 
@@ -67,109 +67,114 @@ int main(int argc, char *argv[]) {
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 	B_size = chr_array_from_list(B_list, &B_array, chrom_num);
 
+	struct interval_triple *A = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
+	struct interval_triple *A_end = (struct interval_triple *)
+			malloc(A_size * sizeof(struct interval_triple));
 
-	// make one large array to hold these
-	/* 
-	 * We need to put both A and B into a single array then sort it
-	 *
-	 * Each interval becomes a triple: 
-	 *   key:  offset
-	 *   sample:  A (0) or B (1)
-	 *   type:  start (0) or  end (1)
-	 *   rank: order within
-	 *
-	 */
-	struct triple *AB = (struct triple *)
-			malloc((2*A_size + 2*B_size)*sizeof(struct triple));
-	//A and B points to AB, A to the beging and B to the interior, after A
-	struct triple *A = AB;
-	struct triple *B = AB + 2*A_size;
+	struct interval_triple *B = (struct interval_triple *)
+			malloc(B_size * sizeof(struct interval_triple));
 
-	map_intervals(A, A_array, A_size, U_array, U_size, 0 );
-	map_intervals(B, B_array, B_size, U_array, U_size, 1 );
+	map_to_interval_triple(A, A_array, A_size, U_array, U_size, 0 );
+	map_to_interval_triple(B, B_array, B_size, U_array, U_size, 1 );
 
-	// sort A and B so they can be ranked
-	qsort(A, 2*A_size, sizeof(struct triple), compare_triple_lists);
-	qsort(B, 2*B_size, sizeof(struct triple), compare_triple_lists);
+	// sort A so it can be searched by start
+	start();
+	qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+	qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
 
 	unsigned int *A_len = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
 	unsigned int *B_len = (unsigned int *) malloc(
 			B_size * sizeof(unsigned int));
 
-	unsigned int *A_start = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-	unsigned int *B_start = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
-
 	// Set sized
 	for (i = 0; i < A_size; i++)
-		A_start[i] = A[i*2].key;
+		A_len[i] = A[i].end - A[i].start;
 	for (i = 0; i < B_size; i++) 
-		B_start[i] = B[i*2].key;
+		B_len[i] = B[i].end - B[i].start;
 
-	// Get lengthsrank = i/2;
-	for (i = 0; i < A_size; i++)
-		A_len[i] = A[i*2 + 1].key - A[i*2].key;
-	for (i = 0; i < B_size; i++)
-		B_len[i] = B[i*2 + 1].key - B[i*2].key;
+	memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+	qsort(A_end, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_end);
+	stop();
+	unsigned long sort_seq = report();
+
+	start();
+	int O = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
+	stop();
+	unsigned long count_seq = report();
+
+	//init_genrand((unsigned) time(NULL));
+	//init_genrand(2);
+
+	unsigned long rand_total_time = 0,
+				  sort_total_time = 0,
+				  intersect_total_time = 0;
 
 
-	int O = count_intersections_bsearch(
-			A_start, A_len, A_size,
-			B_start, B_len, B_size );
+	omp_set_num_threads(n);
 
-	init_genrand((unsigned) time(NULL));
+	unsigned int seed = (unsigned) time(NULL);
+	int *x = (int *) calloc(n, sizeof(int) );
+	int flag = 0, th_id, j;
 
-	int j = 0;
+	unsigned long *mt_r;
+	int mti_r;
 
-	omp_set_num_threads(p);
-
-	int *x = (int *) calloc(p, sizeof(int) );
-
-	#pragma omp parallel for 
+	#pragma omp parallel for private(flag, th_id, mt_r, mti_r)
 	for (j = 0; j < reps; j++) {
+		th_id = omp_get_thread_num();
 
+		if (flag == 0) {
+			init_genrand_omp(seed + th_id, &mt_r, &mti_r);
+			flag = 1;
+		}
 
-		unsigned int *A_rand = (unsigned int *) malloc(
-			A_size * sizeof(unsigned int));
-		unsigned int *B_rand = (unsigned int *) malloc(
-			B_size * sizeof(unsigned int));
+		start();
+		for (i = 0; i < A_size; i++)
+			A[i].start = get_rand_omp(max, mask, &mt_r, &mti_r);
 
+		for (i = 0; i < B_size; i++)
+			B[i].start = get_rand_omp(max, mask, &mt_r, &mti_r);
+		stop();
+		rand_total_time += report();
 
-		//start();
-		int k;
-		for (k = 0; k < A_size; k++)
-			A_rand[k] = genrand_int32() % max;
-		for (k = 0; k < B_size; k++) 
-			B_rand[k] = genrand_int32() % max;
-		//stop();
-		//printf("r:%ld\t", report());
-		//rand_total_time += report();
+		start();
+		qsort(A, A_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
+		qsort(B, B_size, sizeof(struct interval_triple),
+			compare_interval_triples_by_start);
 
-		//start();
-		qsort(A_rand, A_size, sizeof(unsigned int), compare_uints);
-		qsort(B_rand, B_size, sizeof(unsigned int), compare_uints);
-		//stop();
-		//printf("s:%ld\t", report());
-		//sort_total_time += report();
+		for (i = 0; i < A_size; i++) 
+			A[i].end = A[i].start + A_len[i];
+		for (i = 0; i < B_size; i++)
+			B[i].end = B[i].start + B_len[i];
 
-		//start();
-		int r = count_intersections_bsearch(
-				A_rand, A_len, A_size,
-				B_rand, B_len, B_size );
-		//stop();
-		//printf("i:%ld\t", report());
-		//intersect_total_time += report();
+		memcpy(A_end, A, A_size * sizeof(struct interval_triple));
+		qsort(A_end, A_size, sizeof(struct interval_triple),
+				compare_interval_triples_by_end);
+		stop();
+
+		sort_total_time += report();
+
+		start();
+		int r = count_intersections_bsearch_seq( A, A_end, A_size, B, B_size );
+		stop();
+		intersect_total_time += report();
 
 		if (r >= O)
-			x[p] = x[p] + 1;		
+			x[th_id] = x[th_id] + 1;		
 	}
 
-	//double p = ( (double)(x + 1) ) / ( (double)(reps + 1) );
-	//fprintf(stderr,"O:%d\tp:%f\n", O, p);
+	int X = 0;
+	for (i = 0; i < n; i++)
+		X += x[i];
 
-	/*
+	double p = ( (double)(X + 1) ) / ( (double)(reps + 1) );
+
 	double  rand_avg_time = ( (double) rand_total_time) / reps,
 			sort_avg_time = ( (double) sort_total_time) / reps,
 			intersect_avg_time = ( (double)  intersect_total_time) / reps;
@@ -180,13 +185,15 @@ int main(int argc, char *argv[]) {
 			sort_prop_time = sort_avg_time/total_avg_time,
 			intersect_prop_time = intersect_avg_time/total_avg_time;
 
-	printf("t:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+	fprintf(stderr, "p:%G\tO:%d\n", p, O);
+	printf("%d,%d,%d\tt:%G\tr:%G,%G\ts:%G,%G\ti:%G,%G\n", 
+			A_size,
+			B_size,
+			A_size + B_size,
 			total_avg_time,
 			rand_avg_time, rand_prop_time,
 			sort_avg_time, sort_prop_time,
 			intersect_avg_time, intersect_prop_time);
-			*/
 
 	return 0;
-
 }
