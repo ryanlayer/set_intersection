@@ -19,7 +19,6 @@ int count_intersections_bsearch_omp( struct interval_triple *A,
 
 	#pragma omp parallel for
 	for (i = 0; i < B_size; i++) {
-
 		int t_id = omp_get_thread_num();
 
 		int a = interval_triple_bsearch_end(A_end, A_size, B[i].start);

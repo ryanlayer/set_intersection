@@ -76,14 +76,14 @@ unsigned int get_rand(unsigned int max, unsigned int mask);
 
 unsigned int get_rand_omp( unsigned int max,
 						   unsigned int mask,
-						   unsigned long **mt_r,
+						   unsigned long *mt_r,
 						   int *mti_r );
 
 
-unsigned long genrand_int32_omp( unsigned long **mt_r,
+unsigned long genrand_int32_omp( unsigned long *mt_r,
 								 int *mti_r );
 
 void init_genrand_omp( unsigned long s,
-					   unsigned long **mt_r,
+					   unsigned long *mt_r,
 					   int *mti_r );
 #endif

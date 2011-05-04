@@ -42,15 +42,12 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
 	int max = add_offsets(U_list, chrom_num);
-
 
 	if (max == 0) {
 		fprintf(stderr, "Max is zero.\n");
 		return 1;
 	}
-
 
 	trim(U_list, A_list, chrom_num);
 	trim(U_list, B_list, chrom_num);
@@ -91,6 +88,7 @@ int main(int argc, char *argv[]) {
 	stop();
 	unsigned long sort_seq = report();
 
+	fprintf(stderr, "*\n");
 	start();
 	int O = count_intersections_bsearch_omp( A, A_end, A_size, B, B_size, p);
 	stop();

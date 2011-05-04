@@ -175,7 +175,7 @@ unsigned int get_rand(unsigned int max, unsigned int mask) {
 
 unsigned int get_rand_omp( unsigned int max,
 						   unsigned int mask,
-						   unsigned long **mt_r,
+						   unsigned long *mt_r,
 						   int *mti_r )
 {
 	unsigned int rand = (unsigned int)genrand_int32_omp(mt_r, mti_r) & mask;
@@ -186,7 +186,7 @@ unsigned int get_rand_omp( unsigned int max,
 
 
 /* generates a random number on [0,0xffffffff]-interval */
-unsigned long genrand_int32_omp( unsigned long **mt_r,
+unsigned long genrand_int32_omp( unsigned long *mt_r,
 								 int *mti_r )
 {
     unsigned long y;
@@ -200,21 +200,21 @@ unsigned long genrand_int32_omp( unsigned long **mt_r,
             init_genrand(5489UL); /* a default initial seed is used */
 
         for (kk=0;kk<N-M;kk++) {
-            y = ((*mt_r)[kk]&UPPER_MASK)|((*mt_r)[kk+1]&LOWER_MASK);
-            (*mt_r)[kk] = (*mt_r)[kk+M] ^ (y >> 1) ^ mag01[y & 0x1UL];
+            y = (mt_r[kk]&UPPER_MASK)|(mt_r[kk+1]&LOWER_MASK);
+            mt_r[kk] = mt_r[kk+M] ^ (y >> 1) ^ mag01[y & 0x1UL];
         }
         for (;kk<N-1;kk++) {
-            y = ((*mt_r)[kk]&UPPER_MASK)|((*mt_r)[kk+1]&LOWER_MASK);
-            (*mt_r)[kk] = (*mt_r)[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1UL];
+            y = (mt_r[kk]&UPPER_MASK)|(mt_r[kk+1]&LOWER_MASK);
+            mt_r[kk] = mt_r[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1UL];
         }
-        y = ((*mt_r)[N-1]&UPPER_MASK)|((*mt_r)[0]&LOWER_MASK);
-        (*mt_r)[N-1] = (*mt_r)[M-1] ^ (y >> 1) ^ mag01[y & 0x1UL];
+        y = (mt_r[N-1]&UPPER_MASK)|(mt_r[0]&LOWER_MASK);
+        mt_r[N-1] = mt_r[M-1] ^ (y >> 1) ^ mag01[y & 0x1UL];
 
         *mti_r = 0;
     }
   
     //y = mt[mti++];
-    y = (*mt_r)[*mti_r];
+    y = mt_r[*mti_r];
 	*mti_r = *mti_r + 1;	
 
     /* Tempering */
@@ -231,21 +231,21 @@ unsigned long genrand_int32_omp( unsigned long **mt_r,
 //static int mti=N+1; /* mti==N+1 means mt[N] is not initialized */
 /* initializes mt[N] with a seed */
 void init_genrand_omp( unsigned long s,
-					   unsigned long **mt_r,
+					   unsigned long *mt_r,
 					   int *mti_r )
 {
-	*mt_r = (unsigned long *) malloc (N * sizeof(unsigned long));
+	//*mt_r = (unsigned long *) malloc (N * sizeof(unsigned long));
 			
-    (*mt_r)[0]= s & 0xffffffffUL;
+    mt_r[0]= s & 0xffffffffUL;
     for (*mti_r=1; *mti_r<N; (*mti_r)++) {
-        (*mt_r)[*mti_r] = 
-	    (1812433253UL * ( (*mt_r)[*mti_r-1] ^ ( (*mt_r)[*mti_r-1] >> 30)) + 
+        mt_r[*mti_r] = 
+	    (1812433253UL * ( mt_r[*mti_r-1] ^ ( mt_r[*mti_r-1] >> 30)) + 
 			*mti_r); 
         /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
         /* In the previous versions, MSBs of the seed affect   */
         /* only MSBs of the array mt[].                        */
         /* 2002/01/09 modified by Makoto Matsumoto             */
-        (*mt_r)[*mti_r] &= 0xffffffffUL;
+        mt_r[*mti_r] &= 0xffffffffUL;
         /* for >32 bit machines */
     }
 }

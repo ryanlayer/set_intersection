@@ -1,6 +1,7 @@
 CC=gcc
 AR=ar
-CFLAGS= -fopenmp -Wall -g -O3 
+#CFLAGS= -fopenmp -Wall -g -O3 
+CFLAGS= -fopenmp -Wall -g
 #CFLAGS= -Wall -Wno-deprecated -g
 #LDFLAGS= -lgsl -lgslcblas -lm 
 LDFLAGS= -lm 
