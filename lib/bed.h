@@ -70,4 +70,11 @@ int trim(struct chr_list *universe,
 		 int chrom_num);
 
 int chr_name_to_int(char *name);
+
+
+int parse_bed_line(FILE *bed_file,
+				   char *chr,
+				   unsigned int *start,
+				   unsigned int *end);
+
 #endif

@@ -119,4 +119,22 @@ void map_to_interval_pair( struct interval_pair *A,
 					int U_size,
 					int sample);
 
+void map_to_start_len_array( unsigned int *A_start,
+							 unsigned int *A_len,
+							 struct bed_line *A_array,
+							 int A_size,
+							 struct bed_line *U_array,
+							 int U_size);
+
+int map_start_end_from_file( FILE *B_file,
+							 unsigned int *B_start,
+							 unsigned int *B_end,
+							 unsigned int chunk_size,
+							 unsigned int *B_curr_size,
+							 struct bed_line *U_array,
+							 int U_size);
+
+int unsigned_bsearch( unsigned int *A, 
+							int A_size,
+							unsigned int key);
 #endif

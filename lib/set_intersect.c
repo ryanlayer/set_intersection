@@ -479,6 +479,34 @@ void map_to_interval_pair( struct interval_pair *A,
 }
 //}}}
 
+//{{{void map_to_interval_pair( struct interval_triple *A, 
+void map_to_start_len_array( unsigned int *A_start, 
+							 unsigned int *A_len, 
+							 struct bed_line *A_array,
+							 int A_size, 
+							 struct bed_line *U_array, 
+							 int U_size)
+{
+	int i, j;
+	for (i = 0; i < A_size; i++) {
+		unsigned int start = 0, offset = 0;
+		// find the universe interval the current interval is in
+		// so we can caclulate its place in the continous space
+		for (j = 0; j < U_size; j++) {
+			if ( ( U_array[j].chr == A_array[i].chr) &&
+				 ( U_array[j].start <= A_array[i].end) &&
+				 ( U_array[j].end >= A_array[i].start) ) {
+				start = U_array[j].start;
+				offset = U_array[j].offset;
+				break;
+			}
+		}
+		A_start[i] = A_array[i].start - start + offset;
+		A_start[i] = A_array[i].end - A_array[i].start;
+	}
+}
+//}}}
+
 //{{{ int count_intersections_sweep_seq
 /*
  * AB is a single sorted list with both A and B elements
@@ -602,6 +630,45 @@ int count_intersections_bsearch_seq(struct interval_triple *A,
 }
 // }}}
 
+//{{{ void big_count_intersections_bsearch_seq( struct interval *A_r,
+void big_count_intersections_bsearch_seq(unsigned int *A_start, 
+										 unsigned int *A_len, 
+										 int A_size,
+										 unsigned int *B_start, 
+										 unsigned int *B_end, 
+										 int B_size,
+										 unsigned int *R)
+{
+	int i;
+
+	for (i = 0; i < A_size; i++) {
+		int start = A_start[i];
+		int end = start + A_len[i];
+
+		int a = unsigned_bsearch(B_end, B_size, start);
+		int b = unsigned_bsearch(B_start, B_size, end);
+		/*
+		while ( ( A_end[a].end == B[i].start ) && (a > 0))
+			--a;
+		*/
+
+		int num_cant_before = a; 
+
+		while ( ( B_start[b] == end ) && b < B_size)
+			++b;
+
+		int num_cant_after = B_size - b;
+
+
+		int num_left = B_size - num_cant_before - num_cant_after;
+
+		//O += num_left;
+		R[i] += num_left;
+	}
+
+}
+// }}}
+
 //{{{int interval_triple_bsearch_end( struct interval_triple *A_end, 
 int interval_triple_bsearch_end( struct interval_triple *A_end, 
 								 int A_size,
@@ -635,5 +702,78 @@ int interval_triple_bsearch_start( struct interval_triple *A_start,
 	}
 
 	return hi;
+}
+//}}}
+
+//{{{ int unsigned_bsearch( struct interval_triple *A_start, 
+int unsigned_bsearch( unsigned int *A, 
+					  int A_size,
+					  unsigned int key)
+{
+	int lo = -1, hi = A_size, mid;
+	while ( hi - lo > 1) {
+		mid = (hi + lo) / 2;
+
+		if ( A[mid] < key )
+			lo = mid;
+		else
+			hi = mid;
+	}
+
+	return hi;
+}
+//}}}
+
+
+//{{{ int map_start_end_from_file( FILE *B_file,
+/*
+ * This function should read in up to chunk_size lines from B_file, and map
+ * them into a 1D space using the universe U by start (in B_start) and end (in
+ * B_end).  If there are less then chunk_size lines left in B_file then put
+ * the remaining lines into B_start and B_end.  
+ *
+ * Return B_curr_size
+ *
+ */
+int map_start_end_from_file( FILE *B_file,
+							 unsigned int *B_start,
+							 unsigned int *B_end,
+							 unsigned int chunk_size,
+							 unsigned int *B_curr_size,
+							 struct bed_line *U_array,
+							 int U_size)
+{
+
+	char chr_c[4];
+	int size = 0;
+	unsigned int start, end;
+
+	while ( parse_bed_line(B_file, chr_c, &start, &end) &&
+			   (size < chunk_size) ) {
+
+		int chr_i = chr_name_to_int(chr_c);
+
+		int j;
+		unsigned int u_start = 0, u_offset = 0;
+		int flag = 0;
+		for (j = 0; j < U_size; j++) {
+			if ( ( U_array[j].chr == chr_i) &&
+				 ( U_array[j].start <= end) &&
+				 ( U_array[j].end >= start) ) {
+				u_start = U_array[j].start;
+				u_offset = U_array[j].offset;
+				flag = 1;
+				break;
+			}
+		}
+
+		if (flag == 1) {
+			B_start[size] = start - u_start + u_offset;
+			B_end[size] = end - u_start + u_offset;
+			++size;
+		}
+	}
+
+	return size;
 }
 //}}}
