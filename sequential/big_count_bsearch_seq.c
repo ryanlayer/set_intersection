@@ -100,8 +100,6 @@ int main(int argc, char *argv[]) {
 					B_file, B_start, B_end, chunk_size, &B_curr_size,
 					U_array, U_size) ) {
 		
-		printf("*");
-
 		qsort(B_start, B_curr_size, sizeof(unsigned int), compare_uints);
 		qsort(B_end, B_curr_size, sizeof(unsigned int), compare_uints);
 

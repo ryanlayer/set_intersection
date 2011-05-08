@@ -137,4 +137,13 @@ int map_start_end_from_file( FILE *B_file,
 int unsigned_bsearch( unsigned int *A, 
 							int A_size,
 							unsigned int key);
+
+void big_count_intersections_bsearch_seq(unsigned int *A_start,
+										 unsigned int *A_len,
+										 int A_size,
+										 unsigned int *B_start,
+										 unsigned int *B_end,
+										 int B_size,
+										 unsigned int *R);
+
 #endif

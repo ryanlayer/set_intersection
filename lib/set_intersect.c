@@ -479,7 +479,7 @@ void map_to_interval_pair( struct interval_pair *A,
 }
 //}}}
 
-//{{{void map_to_interval_pair( struct interval_triple *A, 
+//{{{ void map_to_start_len_array( unsigned int *A_start, 
 void map_to_start_len_array( unsigned int *A_start, 
 							 unsigned int *A_len, 
 							 struct bed_line *A_array,
@@ -502,7 +502,7 @@ void map_to_start_len_array( unsigned int *A_start,
 			}
 		}
 		A_start[i] = A_array[i].start - start + offset;
-		A_start[i] = A_array[i].end - A_array[i].start;
+		A_len[i] = A_array[i].end - A_array[i].start;
 	}
 }
 //}}}
@@ -642,8 +642,8 @@ void big_count_intersections_bsearch_seq(unsigned int *A_start,
 	int i;
 
 	for (i = 0; i < A_size; i++) {
-		int start = A_start[i];
-		int end = start + A_len[i];
+		unsigned int start = A_start[i];
+		unsigned int end = start + A_len[i];
 
 		int a = unsigned_bsearch(B_end, B_size, start);
 		int b = unsigned_bsearch(B_start, B_size, end);
@@ -662,7 +662,6 @@ void big_count_intersections_bsearch_seq(unsigned int *A_start,
 
 		int num_left = B_size - num_cant_before - num_cant_after;
 
-		//O += num_left;
 		R[i] += num_left;
 	}
 
@@ -724,7 +723,6 @@ int unsigned_bsearch( unsigned int *A,
 }
 //}}}
 
-
 //{{{ int map_start_end_from_file( FILE *B_file,
 /*
  * This function should read in up to chunk_size lines from B_file, and map
@@ -773,6 +771,8 @@ int map_start_end_from_file( FILE *B_file,
 			++size;
 		}
 	}
+
+	*B_curr_size = size;
 
 	return size;
 }
