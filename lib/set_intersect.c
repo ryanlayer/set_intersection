@@ -723,6 +723,69 @@ int unsigned_bsearch( unsigned int *A,
 }
 //}}}
 
+//{{{ unsigned int map_start_end_from_file( FILE *B_file,
+/*
+ * This function should read in up to chunk_size lines from B_file, and map
+ * them into a 1D space using the universe U by start (in B_start) and end (in
+ * B_end).  If there are less then chunk_size lines left in B_file then put
+ * the remaining lines into B_start and B_end.  
+ *
+ * Return B_curr_size
+ *
+ */
+unsigned int map_start_end_from_file_mpi( FILE *B_file,
+							 unsigned int *B_start,
+							 unsigned int *B_end,
+							 unsigned int chunk_size,
+							 unsigned int *B_curr_size,
+							 struct bed_line *U_array,
+							 int U_size,
+							 int rank,
+							 int net_size,
+							 unsigned int *line)
+{
+
+	char chr_c[5];
+	unsigned int size = 0;
+	unsigned int start, end;
+
+	while ( parse_bed_line(B_file, chr_c, &start, &end) &&
+			   (size < chunk_size) ) {
+
+		if ( (*line % net_size) == rank ) {
+
+			int chr_i = chr_name_to_int(chr_c);
+
+			int j;
+			unsigned int u_start = 0, u_offset = 0;
+			int flag = 0;
+			for (j = 0; j < U_size; j++) {
+				if ( ( U_array[j].chr == chr_i) &&
+					 ( U_array[j].start <= end) &&
+					 ( U_array[j].end >= start) ) {
+					u_start = U_array[j].start;
+					u_offset = U_array[j].offset;
+					flag = 1;
+					break;
+				}
+			}
+
+			if (flag == 1) {
+				B_start[size] = start - u_start + u_offset;
+				B_end[size] = end - u_start + u_offset;
+				++size;
+			}
+		}
+
+		*line = *line + 1;
+	}
+
+	*B_curr_size = size;
+
+	return size;
+}
+//}}}
+
 //{{{ int map_start_end_from_file( FILE *B_file,
 /*
  * This function should read in up to chunk_size lines from B_file, and map
@@ -733,7 +796,7 @@ int unsigned_bsearch( unsigned int *A,
  * Return B_curr_size
  *
  */
-int map_start_end_from_file( FILE *B_file,
+unsigned int map_start_end_from_file( FILE *B_file,
 							 unsigned int *B_start,
 							 unsigned int *B_end,
 							 unsigned int chunk_size,
@@ -742,8 +805,8 @@ int map_start_end_from_file( FILE *B_file,
 							 int U_size)
 {
 
-	char chr_c[4];
-	int size = 0;
+	char chr_c[5];
+	unsigned int size = 0;
 	unsigned int start, end;
 
 	while ( parse_bed_line(B_file, chr_c, &start, &end) &&

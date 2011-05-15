@@ -18,6 +18,7 @@ COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
 SIM_BSEARCH_OMP=$OMP_BASE/num_sim_bsearch_omp
 
 SIM_BSEARCH_MPI=$MPI_BASE/num_sim_bsearch_mpi
+BIG_COUNT_BSEARCH_MPI=$MPI_BASE/big_count_bsearch_mpi
 
 #BASE=/home/rl6sf/data/intr
 #BASE=$HOME/data/intervals/

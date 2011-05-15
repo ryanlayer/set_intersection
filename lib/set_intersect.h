@@ -126,7 +126,7 @@ void map_to_start_len_array( unsigned int *A_start,
 							 struct bed_line *U_array,
 							 int U_size);
 
-int map_start_end_from_file( FILE *B_file,
+unsigned int map_start_end_from_file( FILE *B_file,
 							 unsigned int *B_start,
 							 unsigned int *B_end,
 							 unsigned int chunk_size,
@@ -146,4 +146,14 @@ void big_count_intersections_bsearch_seq(unsigned int *A_start,
 										 int B_size,
 										 unsigned int *R);
 
+unsigned int map_start_end_from_file_mpi( FILE *B_file,
+							 unsigned int *B_start,
+							 unsigned int *B_end,
+							 unsigned int chunk_size,
+							 unsigned int *B_curr_size,
+							 struct bed_line *U_array,
+							 int U_size,
+							 int rank,
+							 int net_size,
+							 unsigned int *line);
 #endif

@@ -4,7 +4,8 @@ CFLAGS= -Wall -O3
 #CFLAGS= -Wall -Wno-deprecated -g
 LDFLAGS= -lm 
 
-EXECS=order_mpi num_sim_bsearch_mpi
+EXECS=num_sim_bsearch_mpi \
+	  big_count_bsearch_mpi
 
 BED_FILE_OBJS=../lib/bed.o
 SET_FILE_OBJS=../lib/set_intersect.o
@@ -19,6 +20,9 @@ all: $(EXECS)
 	#$(CC) -o $@  $< $(BED_FILE_OBJS) $(SET_FILE_OBJS)
 
 num_sim_bsearch_mpi: num_sim_bsearch_mpi.o $(OBJS)
+	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
+
+big_count_bsearch_mpi: big_count_bsearch_mpi.o $(OBJS)
 	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
 
 %.o: %.cpp
