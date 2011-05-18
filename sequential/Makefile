@@ -10,6 +10,7 @@ EXECS=order_seq get_rank_pairs get_maped_intervals \
 	  count_brute_force_seq num_sim_bsearch_seq \
 	  enumerate_bsearch_seq \
 	  count_bsearch_seq \
+	  big_count_bsearch_seq \
 	  count_sweep_seq \
 	  s_e_list \
 	  nc_list 
@@ -27,6 +28,9 @@ num_sim_bsearch_seq: num_sim_bsearch_seq.o $(OBJS)
 	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
 
 count_bsearch_seq: count_bsearch_seq.o $(OBJS) 
+	$(CC) -o $@  $< $(OBJS)
+
+big_count_bsearch_seq: big_count_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
 
 count_sweep_seq: count_sweep_seq.o $(OBJS) 

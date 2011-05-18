@@ -8,6 +8,7 @@ MPI_BASE=$HOME/src/set_intersection/mpi
 COUNT_SWEEP_SEQ=$SEQ_BASE/count_sweep_seq
 COUNT_BRUTE_SEQ=$SEQ_BASE/count_brute_force_seq
 COUNT_BSEARCH_SEQ=$SEQ_BASE/count_bsearch_seq
+BIG_COUNT_BSEARCH_SEQ=$SEQ_BASE/big_count_bsearch_seq
 SIM_BSEARCH_SEQ=$SEQ_BASE/num_sim_bsearch_seq
 
 COUNT_BSEARCH_GM_CUDA=$CUDA_BASE/count_bsearch_gm_cuda
@@ -17,10 +18,12 @@ COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
 SIM_BSEARCH_OMP=$OMP_BASE/num_sim_bsearch_omp
 
 SIM_BSEARCH_MPI=$MPI_BASE/num_sim_bsearch_mpi
+BIG_COUNT_BSEARCH_MPI=$MPI_BASE/big_count_bsearch_mpi
 
 #BASE=/home/rl6sf/data/intr
 #BASE=$HOME/data/intervals/
-BASE=/bigtemp/rl6sf/interval/
+#BASE=/bigtemp/rl6sf/interval/
+BASE=/home/rl6sf/data/interval
 
 U=$BASE/hg18/hg19.bed
 A=$BASE/hg18/broad/wgEncodeBroadChipSeqPeaksGm12878H3k27me3.broadPeak.bed

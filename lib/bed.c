@@ -12,8 +12,10 @@
 #define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
+//{{{ struct interval_node *new_interval_node(unsigned int start,
 struct interval_node *new_interval_node(unsigned int start,
-										unsigned int end) {
+										unsigned int end) 
+{
 
    struct interval_node *i = (struct interval_node *)
 		malloc( sizeof(struct interval_node) );
@@ -23,8 +25,11 @@ struct interval_node *new_interval_node(unsigned int start,
 
 	return i;
 }	
+//}}}
 
-struct chr_list new_chr_list(char *name) {
+//{{{struct chr_list new_chr_list(char *name) {
+struct chr_list new_chr_list(char *name)
+{
 	struct chr_list c;
 	c.name = (char *) malloc( sizeof(char) * strlen(name) );
 	strcpy(c.name, name);
@@ -33,46 +38,65 @@ struct chr_list new_chr_list(char *name) {
 
 	return c;
 }
+//}}}
 
+//{{{void chr_list_insert_interval(struct chr_list *list,
 void chr_list_insert_interval(struct chr_list *list,
 							  unsigned int start,
-							  unsigned int end) {
+							  unsigned int end)
+{
    struct interval_node *i = new_interval_node(start, end);
    chr_list_insert_interval_node(list, i);
 }
+//}}}
 
+//{{{void chr_list_insert_interval_node(struct chr_list *list, 
 void chr_list_insert_interval_node(struct chr_list *list, 
-								   struct interval_node *new_interval_node) {
+								   struct interval_node *new_interval_node)
+{
 	new_interval_node->next = list->head;
 	list->head = new_interval_node;
 	list->size++;
 }
+//}}}
 
-int compare_chr_lists (const void *a, const void *b) {   
+//{{{int compare_chr_lists (const void *a, const void *b)
+int compare_chr_lists (const void *a, const void *b)
+{
 	struct chr_list *a_i = (struct chr_list *)a;
 	struct chr_list *b_i = (struct chr_list *)b;
 	return strcmp(a_i->name, b_i->name);
 }
+//}}}
 
+//{{{ int compare_interval_node_by_start(const void *a, const void *b) {
 int compare_interval_node_by_start(const void *a, const void *b) {
 	struct interval_node *a_i = (struct interval_node *)a;
 	struct interval_node *b_i = (struct interval_node *)b;
 	return a_i->start - b_i->start;
 }
+//}}}
 
-int compare_interval_by_start(const void *a, const void *b) {
+//{{{ int compare_interval_by_start(const void *a, const void *b)
+int compare_interval_by_start(const void *a, const void *b)
+{
 	struct interval *a_i = (struct interval *)a;
 	struct interval *b_i = (struct interval *)b;
 	return a_i->start - b_i->start;
 }
+//}}}
 
-int compare_interval_node_by_end(const void *a, const void *b) {
+//{{{ int compare_interval_node_by_end(const void *a, const void *b)
+int compare_interval_node_by_end(const void *a, const void *b)
+{
 	struct interval_node *a_i = (struct interval_node *)a;
 	struct interval_node *b_i = (struct interval_node *)b;
 	//printf("%d\t%d\n", a_i->end, b_i->end);
 	return a_i->end - b_i->end;
 }
+//}}}
 
+//{{{void parse_bed_file(FILE *bed_file, struct chr_list chroms[],
 /**
  * parse_bed_file takes three parameters:
  * bed_file is a pointer to an open bed file, which is a a tab-delmited file
@@ -87,7 +111,8 @@ int compare_interval_node_by_end(const void *a, const void *b) {
  *
  * Each lines that start with "chr" 
  */
-void parse_bed_file(FILE *bed_file, struct chr_list chroms[], int chrom_num) {
+void parse_bed_file(FILE *bed_file, struct chr_list chroms[], int chrom_num)
+{
 	char line[LINE_MAX];
 	while(fgets(line, LINE_MAX, bed_file) != NULL) {
 		if ( strncmp("chr", line, 3) == 0 ) {
@@ -107,7 +132,30 @@ void parse_bed_file(FILE *bed_file, struct chr_list chroms[], int chrom_num) {
 		}
 	}
 }
+//}}}
 
+//{{{ int parse_bed_line(FILE *bed_file,
+int parse_bed_line(FILE *bed_file,
+				   char *chr, 
+				   unsigned int *start,
+				   unsigned int *end)
+{
+	char line[LINE_MAX];
+	while(fgets(line, LINE_MAX, bed_file) != NULL) {
+		if ( strncmp("chr", line, 3) == 0 ) {
+			strcpy(chr, strtok(line, "\t"));
+			*start = atoi( strtok(NULL, "\t") );
+			*end = atoi( strtok(NULL, "\t") );
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+//}}}
+
+//{{{void free_chr_list(struct chr_list *list, int chrom_num) 
 void free_chr_list(struct chr_list *list, int chrom_num) 
 {
 	int i;
@@ -125,7 +173,9 @@ void free_chr_list(struct chr_list *list, int chrom_num)
 	}
 	//free(list);
 }
+//}}}
 
+//{{{int chr_name_to_int(char *name)
 int chr_name_to_int(char *name)
 {
 	int chr = 0;
@@ -139,8 +189,11 @@ int chr_name_to_int(char *name)
 
 	return chr;
 }
+//}}}
 
-int parse_bed_file_by_line(char *bed_file_name, struct bed_line **lines) {
+//{{{int parse_bed_file_by_line(char *bed_file_name, struct bed_line **lines) {
+int parse_bed_file_by_line(char *bed_file_name, struct bed_line **lines)
+{
 	
 	FILE *bed_file = fopen(bed_file_name, "r");
 	char line[LINE_MAX];
@@ -180,7 +233,9 @@ int parse_bed_file_by_line(char *bed_file_name, struct bed_line **lines) {
 
 	return line_num;
 }
+//}}}
 
+//{{{int chr_list_from_bed_file(struct chr_list **list, char **chrom_names,
 int chr_list_from_bed_file(struct chr_list **list, char **chrom_names,
 		int chrom_num, char *bed_file_name) 
 {
@@ -198,7 +253,7 @@ int chr_list_from_bed_file(struct chr_list **list, char **chrom_names,
 	FILE *file = fopen(bed_file_name, "r");
 
 	if (file == NULL) {
-		fprintf(stderr, "NULL FILE\n");
+		fprintf(stderr, "Could not open file:%s\n", bed_file_name);
 		return 1;
 	}
 
@@ -208,7 +263,9 @@ int chr_list_from_bed_file(struct chr_list **list, char **chrom_names,
 
 	return 0;
 }
+//}}}
 
+//{{{int trim(struct chr_list *universe, struct chr_list *interval_set, 
 int trim(struct chr_list *universe, struct chr_list *interval_set, 
 		 int chrom_num) 
 {
@@ -274,7 +331,9 @@ int trim(struct chr_list *universe, struct chr_list *interval_set,
 
 	return c;
 }
+//}}}
 
+//{{{int chr_array_from_list(struct chr_list *list, struct bed_line **array, 
 int chr_array_from_list(struct chr_list *list, struct bed_line **array, 
 		int chrom_num)
 {
@@ -305,3 +364,4 @@ int chr_array_from_list(struct chr_list *list, struct bed_line **array,
 
 	return total_size;
 }
+//}}}
