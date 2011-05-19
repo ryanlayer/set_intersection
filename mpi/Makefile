@@ -1,6 +1,6 @@
 CC=mpicc
 AR=ar
-CFLAGS= -Wall -O3 
+CFLAGS= -O3 
 #CFLAGS= -Wall -Wno-deprecated -g
 LDFLAGS= -lm 
 

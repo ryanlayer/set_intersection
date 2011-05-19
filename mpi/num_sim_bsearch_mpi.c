@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 		MPI_Recv(&seed, 1, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD, &status);
 	}
 
-	fprintf(stderr, "r:%d\ts:%lu\n", rank, seed);
+	//fprintf(stderr, "r:%d\ts:%lu\n", rank, seed);
 
 	init_genrand(seed + rank);
 
@@ -154,14 +154,14 @@ int main(int argc, char *argv[]) {
 
 	if (rank == 0) {
 		seen = 0;
-		printf("%d\tgot:%u\tfrom:%d\n", rank, x, rank);
+		//printf("%d\tgot:%u\tfrom:%d\n", rank, x, rank);
 		while (seen < (size - 1)) {
 			MPI_Recv(&buf, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 0,
 			MPI_COMM_WORLD, &status);
 			++seen;
 			x += buf;
-			printf("%d\tgot:%u\tfrom:%d\t%d\n", rank, buf, status.MPI_SOURCE,
-					x);
+			//printf("%d\tgot:%u\tfrom:%d\t%d\n", rank, buf, status.MPI_SOURCE,
+					//x);
 		}
 
 		double p = ((double)x + 1) / (double)(reps/size * size );
@@ -171,7 +171,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	stop();
-	printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, B_size, A_size + B_size, report(),rank);
+	if (rank == 0)
+		printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, B_size, A_size + B_size, report(),size);
 	MPI_Finalize();
 
 	return 0;

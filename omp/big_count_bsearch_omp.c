@@ -2,31 +2,28 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
-#include <mpi.h>
-#include <math.h>
 #include <string.h>
+#include <omp.h>
 
 #include "../lib/bed.h"
 #include "../lib/set_intersect.h"
 #include "../lib/mt.h"
 #include "../lib/timer.h"
 
-int main(int argc, char *argv[]) {
-	MPI_Status status;
-	int rank, size, seen;
+#define MIN(a,b) ((a)>(b)?(b):(a))
+#define MAX(a,b) ((a)<(b)?(b):(a))
 
-	MPI_Init (&argc, &argv);    /* starts MPI */
-	MPI_Comm_rank (MPI_COMM_WORLD, &rank);  /* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
+int main(int argc, char *argv[]) {
 
 	/*
 	 * Load the set of quiereis from A, then search B in some number of rounds
 	 */
-	if (argc < 4) {
-		fprintf(stderr, "usage: %s <U> <A> <B> <chunks>\n"
+	if (argc < 5) {
+		fprintf(stderr, "usage: %s <U> <A> <B> <n> <chunks>\n"
 				"U\tUnivese\n"
 				"A\tQuery set\n"
 				"B\tDB set\n"
+				"n\tthreads\n"
 				"chunks\tNumber of B to process each round\n",
 				argv[0]);
 
@@ -46,13 +43,14 @@ int main(int argc, char *argv[]) {
 	struct chr_list *U_list, *A_list;
 
 	char *U_file_name = argv[1], *A_file_name = argv[2], *B_file_name = argv[3];
-	int chunk_size = atoi(argv[4]);
 
+	int n = atoi(argv[4]);
+	int chunk_size = atoi(argv[5]);
 
 	if((chr_list_from_bed_file(&U_list, chrom_names, 
 					chrom_num, U_file_name) == 1) ||
-	   (chr_list_from_bed_file(&A_list, chrom_names,
-					chrom_num, A_file_name) == 1) ) {
+			(chr_list_from_bed_file(&A_list, chrom_names, 
+					chrom_num, A_file_name) == 1) ){
 		fprintf(stderr, "Error parsing bed files.\n");
 		return 1;
 	}
@@ -103,55 +101,38 @@ int main(int argc, char *argv[]) {
 	unsigned int line = 0;
 
 	// fill B arrays up to either the remaining amount of B, or full B
-	while ( map_start_end_from_file_mpi(
+	omp_set_num_threads(n);
+
+	while ( map_start_end_from_file(
 					B_file, B_start, B_end, chunk_size, &B_curr_size,
-					U_array, U_size, rank, size, &line) ) {
+					U_array, U_size) ) {
+		line += B_curr_size;
 		
 		qsort(B_start, B_curr_size, sizeof(unsigned int), compare_uints);
 		qsort(B_end, B_curr_size, sizeof(unsigned int), compare_uints);
 
-		big_count_intersections_bsearch_seq(A_start, A_len, A_size,
-				B_start, B_end, B_curr_size, R);
+		int j;
+
+		#pragma omp parallel for 
+		for (j = 0; j < n; j++)
+			big_count_intersections_bsearch_seq(
+					(A_start + n*j), 
+					(A_len + n*j),
+					A_size/n,
+					B_start, B_end, B_curr_size, R);
 	}
 
-	/* One sink
-	*/
-	if (rank == 0) {
-		unsigned int *R_r = (unsigned int *) malloc(
-				A_size * sizeof(unsigned int));
-		seen = 0;
-		int i;
-		while (seen < (size - 1)) {
-			MPI_Recv(R_r, A_size, MPI_UNSIGNED, MPI_ANY_SOURCE, 0,
-					MPI_COMM_WORLD, &status);
-			++seen;
-			for (i = 0; i < A_size; i++) 
-				R[i] += R_r[i];
-		}
-		unsigned int O = 0;
-		for (i = 0; i < A_size; i++) 
-			O += R[i];
-		printf("O:%u\n", O);
-	} else {
-		MPI_Send(R, A_size, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
-	}
-	/* Tree */
-	// Round 1: 0<-1 2<-3 4<-5 6<-7...
-	// Round 2: 0<-2< 4<-6
-	// Round 3: 0<-6
-	/*
-	int depth = (int) ( ceil (log(size)/log(2)) );
+	int i, O = 0;
+	for (i = 0; i < A_size; i++) 
+		O += R[i];
 
-	int h;
-	for (h = 1; h <= depth; h++) {
-		if ( (pow(rank,h)) == 0 )
-			prinf("h:%d\tr:%d\n");
-	}
-	*/
 	stop();
-	printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, line, A_size + line, report(),
-			rank);
-	MPI_Finalize();
+	printf("O:%u\n", O);
+	printf("%d,%d,%d\tt:%lu\tn:%d\tc:%d\n",
+			A_size, line, A_size + line,
+			report(),
+			n,
+			chunk_size);
 
 	return 0;
 }
