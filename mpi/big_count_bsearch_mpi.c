@@ -115,6 +115,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* One sink
+	*/
 	if (rank == 0) {
 		unsigned int *R_r = (unsigned int *) malloc(
 				A_size * sizeof(unsigned int));
@@ -134,11 +135,11 @@ int main(int argc, char *argv[]) {
 	} else {
 		MPI_Send(R, A_size, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
 	}
-	*/
 	/* Tree */
 	// Round 1: 0<-1 2<-3 4<-5 6<-7...
 	// Round 2: 0<-2< 4<-6
 	// Round 3: 0<-6
+	/*
 	int depth = (int) ( ceil (log(size)/log(2)) );
 
 	int h;
@@ -146,6 +147,7 @@ int main(int argc, char *argv[]) {
 		if ( (pow(rank,h)) == 0 )
 			prinf("h:%d\tr:%d\n");
 	}
+	*/
 
 	stop();
 	printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, line, A_size + line, report(),
