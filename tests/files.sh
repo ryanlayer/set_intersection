@@ -14,6 +14,7 @@ SIM_BSEARCH_SEQ=$SEQ_BASE/num_sim_bsearch_seq
 COUNT_BSEARCH_GM_CUDA=$CUDA_BASE/count_bsearch_gm_cuda
 SIM_BSEARCH_GM_CUDA=$CUDA_BASE/num_sim_bsearch_gm_cuda
 
+BIG_COUNT_BSEARCH_OMP=$OMP_BASE/big_count_bsearch_omp
 COUNT_BSEARCH_OMP=$OMP_BASE/count_bsearch_omp
 SIM_BSEARCH_OMP=$OMP_BASE/num_sim_bsearch_omp
 

@@ -76,6 +76,8 @@ int main(int argc, char *argv[]) {
 	U_size = chr_array_from_list(U_list, &U_array, chrom_num);
 	A_size = chr_array_from_list(A_list, &A_array, chrom_num);
 
+	start();
+
 	unsigned int *A_start = (unsigned int *) malloc(
 			A_size * sizeof(unsigned int));
 	unsigned int *A_len = (unsigned int *) malloc(
@@ -94,11 +96,15 @@ int main(int argc, char *argv[]) {
 			chunk_size * sizeof(unsigned int));
 
 	unsigned int B_curr_size;
+	unsigned int line = 0;
 
 	// fill B arrays up to either the remaining amount of B, or full B
 	while ( map_start_end_from_file(
 					B_file, B_start, B_end, chunk_size, &B_curr_size,
 					U_array, U_size) ) {
+		line += B_curr_size;
+
+		//fprintf(stderr, "%u\t%u\n", B_curr_size, line); 
 		
 		qsort(B_start, B_curr_size, sizeof(unsigned int), compare_uints);
 		qsort(B_end, B_curr_size, sizeof(unsigned int), compare_uints);
@@ -106,12 +112,23 @@ int main(int argc, char *argv[]) {
 		big_count_intersections_bsearch_seq(A_start, A_len, A_size,
 				B_start, B_end, B_curr_size, R);
 	}
+	stop();
+
+	unsigned long total = report();
 
 	int i, O = 0;
 	for (i = 0; i < A_size; i++) 
 		O += R[i];
 
-	printf("O:%u\n", O);
+	printf("%d,%d,%d\tO:%d\t\tt:%ld\tc:%d\n",
+			A_size,
+			line,
+			A_size + line,
+			O,
+			total,
+			chunk_size 
+		  );
+
 
 	return 0;
 }

@@ -809,8 +809,9 @@ unsigned int map_start_end_from_file( FILE *B_file,
 	unsigned int size = 0;
 	unsigned int start, end;
 
-	while ( parse_bed_line(B_file, chr_c, &start, &end) &&
-			   (size < chunk_size) ) {
+	while ( (size < chunk_size) &&
+			parse_bed_line(B_file, chr_c, &start, &end) ) {
+
 
 		int chr_i = chr_name_to_int(chr_c);
 
@@ -834,6 +835,7 @@ unsigned int map_start_end_from_file( FILE *B_file,
 			++size;
 		}
 	}
+
 
 	*B_curr_size = size;
 

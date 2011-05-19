@@ -116,6 +116,7 @@ int main(int argc, char *argv[]) {
 
 	/* One sink
 	*/
+	unsigned int O = 0;
 	if (rank == 0) {
 		unsigned int *R_r = (unsigned int *) malloc(
 				A_size * sizeof(unsigned int));
@@ -128,10 +129,8 @@ int main(int argc, char *argv[]) {
 			for (i = 0; i < A_size; i++) 
 				R[i] += R_r[i];
 		}
-		unsigned int O = 0;
 		for (i = 0; i < A_size; i++) 
 			O += R[i];
-		printf("O:%u\n", O);
 	} else {
 		MPI_Send(R, A_size, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
 	}
@@ -149,8 +148,12 @@ int main(int argc, char *argv[]) {
 	}
 	*/
 	stop();
-	printf("%d,%d,%d\tt:%lu\tr:%d\n", A_size, line, A_size + line, report(),
-			rank);
+	unsigned long total = report();
+
+	if (rank == 0)
+		printf("%d,%d,%d\tO:%d\t\tt:%ld\tr:%d\n",
+				A_size, line, A_size + line, O, total, rank);
+
 	MPI_Finalize();
 
 	return 0;

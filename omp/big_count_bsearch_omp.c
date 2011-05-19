@@ -114,12 +114,22 @@ int main(int argc, char *argv[]) {
 		int j;
 
 		#pragma omp parallel for 
-		for (j = 0; j < n; j++)
+		for (j = 0; j < n; j++) {
+			int t_id = omp_get_thread_num();
+			// There are n nodes, and each node is taking a portion of the
+			// A_size quieries.  Each node will have at most A_size/n quieries,
+			// and some will have less
+			int share = A_size/n;
+			if (t_id == (n - 1))
+				share +=  A_size % n;
+
 			big_count_intersections_bsearch_seq(
-					(A_start + n*j), 
-					(A_len + n*j),
-					A_size/n,
-					B_start, B_end, B_curr_size, R);
+					A_start + j * (A_size/n) , 
+					A_len + j * (A_size/n),
+					share,
+					B_start, B_end, B_curr_size,
+					R + j * (A_size/n) );
+		}
 	}
 
 	int i, O = 0;
@@ -127,12 +137,17 @@ int main(int argc, char *argv[]) {
 		O += R[i];
 
 	stop();
-	printf("O:%u\n", O);
-	printf("%d,%d,%d\tt:%lu\tn:%d\tc:%d\n",
-			A_size, line, A_size + line,
-			report(),
-			n,
-			chunk_size);
+
+	unsigned long total = report();
+
+	printf("%d,%d,%d\tO:%d\t\tt:%ld\tc:%d\n",
+			A_size,
+			line,
+			A_size + line,
+			O,
+			total,
+			chunk_size 
+		  );
 
 	return 0;
 }
