@@ -140,13 +140,14 @@ int main(int argc, char *argv[]) {
 
 	unsigned long total = report();
 
-	printf("%d,%d,%d\tO:%d\t\tt:%ld\tc:%d\n",
+	printf("%d,%d,%d\tO:%d\t\tt:%ld\tc:%d\ts:%d\n",
 			A_size,
 			line,
 			A_size + line,
 			O,
 			total,
-			chunk_size 
+			chunk_size,
+		    n	
 		  );
 
 	return 0;

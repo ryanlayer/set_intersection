@@ -27,8 +27,8 @@ int main(int argc, char *argv[]) {
 
 	int chrom_num = 24;
 
-	//CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[6] ) ) );
-	CUDA_SAFE_CALL( cudaFree(NULL) );
+	CUDA_SAFE_CALL( cudaSetDevice( atoi(argv[7] ) ) );
+	//CUDA_SAFE_CALL( cudaFree(NULL) );
 
 
 	/***********************REPLACE WITH INPUT FILE************************/	

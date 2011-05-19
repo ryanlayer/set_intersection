@@ -151,8 +151,8 @@ int main(int argc, char *argv[]) {
 	unsigned long total = report();
 
 	if (rank == 0)
-		printf("%d,%d,%d\tO:%d\t\tt:%ld\tr:%d\n",
-				A_size, line, A_size + line, O, total, rank);
+		printf("%d,%d,%d\tO:%d\t\tt:%ld\tc:%d\ts:%d\n",
+				A_size, line, A_size + line, O, total, chunk_size, size);
 
 	MPI_Finalize();
 

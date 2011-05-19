@@ -102,5 +102,13 @@ void set_end( unsigned int *start,
 			  unsigned int *end,
 			  unsigned int *len,
 			  int size);
-
+__global__
+void big_count_bsearch_cuda (	unsigned int *A_start,
+							unsigned int *A_len,
+							int A_size,
+							unsigned int *B_start,
+							unsigned int *B_end,
+							int B_size,
+							unsigned int *R,
+							int n);
 #endif
