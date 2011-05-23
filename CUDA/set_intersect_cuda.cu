@@ -162,7 +162,23 @@ void my_reduce( unsigned int *gdata,
 }
 //}}}
 
-//{{{__device__ int binary_search(int *db, int size_db, int s) {
+//{{{ 
+__global__
+void binary_search_n( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R )
+				     
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if ( id < size_q )
+		R[id] = binary_search(db, size_db, q[id] );
+}
+//}}}
+
+
+//{{{ __device__ int binary_search( unsigned int *db, int size_db, unsigned int
 __device__
 int binary_search( unsigned int *db,
 				   int size_db, 

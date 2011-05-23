@@ -111,4 +111,10 @@ void big_count_bsearch_cuda (	unsigned int *A_start,
 							int B_size,
 							unsigned int *R,
 							int n);
+__global__
+void binary_search_n( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R );
 #endif
