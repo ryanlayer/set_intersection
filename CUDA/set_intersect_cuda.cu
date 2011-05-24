@@ -162,7 +162,7 @@ void my_reduce( unsigned int *gdata,
 }
 //}}}
 
-//{{{ 
+//{{{ __global__ void binary_search_n( unsigned int *db,
 __global__
 void binary_search_n( unsigned int *db,
 					 int size_db, 
@@ -174,6 +174,136 @@ void binary_search_n( unsigned int *db,
 	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if ( id < size_q )
 		R[id] = binary_search(db, size_db, q[id] );
+}
+//}}}
+
+//{{{ __global__ void gen_index( unsigned int *db,
+__global__
+void gen_index( unsigned int *db,
+			    int size_db, 
+				unsigned int *I,
+				int size_I)
+				     
+{
+	//extern __shared__ unsigned int I[];
+
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int i;
+	if ( id < size_I) {
+		i = ((id + 1)*size_db - (size_I - id + 1))/size_I;
+		I[id] = db[i];
+	}
+}
+//}}}
+
+//{{{ __global__ void binary_search_i( unsigned int *db,
+__global__
+void binary_search_p( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 unsigned int *I,
+					 int size_I)
+				     
+{
+	extern __shared__ unsigned int L[];
+
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int i, c, round = 0;
+
+	while ( ( (blockDim.x * round) + threadIdx.x ) < size_I) {
+		c = (blockDim.x*round) + threadIdx.x;
+		L[c] = I[c];
+		++round;
+	}
+	__syncthreads();
+
+	if (id < size_q) {
+		int key = q[id];
+		int b = binary_search(L, size_I, key);
+
+		int new_hi = ( (b+1)*size_db - (size_I - (b+2))) / size_I;
+		int new_lo = ( (b  )*size_db - (size_I - (b+1))) / size_I;
+
+		if (b == 0)
+			new_lo = -1;
+		else if (b == size_I) {
+			new_hi = size_db;
+			//new_lo = ( (b-1)*size_db + (I_size - (b+1))*lo ) / I_size;
+			new_lo = ( (b-1)*size_db - (size_I - (b)) ) / size_I;
+		}
+
+		R[id] =  bound_binary_search(db, size_db, key, new_lo, new_hi);
+		//R[id] =  id;
+	}
+}
+//}}}
+
+//{{{ __global__ void binary_search_i( unsigned int *db,
+__global__
+void binary_search_i( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 int size_I)
+				     
+{
+	extern __shared__ unsigned int I[];
+
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int i, c, round = 0;
+
+	while ( ( (blockDim.x * round) + threadIdx.x ) < size_I) {
+		c = (blockDim.x*round) + threadIdx.x;
+		i = ((c + 1)*size_db - (size_I - c + 1))/size_I;
+		I[c] = db[i];
+		++round;
+		//if ( blockIdx.x == 0 )
+			//R[c] = I[c];
+	}
+	__syncthreads();
+
+	if (id < size_q) {
+		int key = q[id];
+		int b = binary_search(I, size_I, key);
+
+		int new_hi = ( (b+1)*size_db - (size_I - (b+2))) / size_I;
+		int new_lo = ( (b  )*size_db - (size_I - (b+1))) / size_I;
+
+		if (b == 0)
+			new_lo = -1;
+		else if (b == size_I) {
+			new_hi = size_db;
+			//new_lo = ( (b-1)*size_db + (I_size - (b+1))*lo ) / I_size;
+			new_lo = ( (b-1)*size_db - (size_I - (b)) ) / size_I;
+		}
+
+		R[id] =  bound_binary_search(db, size_db, key, new_lo, new_hi);
+		//R[id] =  id;
+	}
+}
+//}}}
+
+//{{{ __device__ int bound_binary_search( unsigned int *db,
+__device__
+int bound_binary_search( unsigned int *db,
+				   int size_db, 
+				   unsigned int s,
+				   int lo,
+				   int hi) 
+{
+	int mid;
+	while ( hi - lo > 1) {
+		mid = (hi + lo) / 2;
+
+		if ( db[mid] < s )
+			lo = mid;
+		else
+			hi = mid;
+	}
+	return hi;
 }
 //}}}
 

@@ -117,4 +117,31 @@ void binary_search_n( unsigned int *db,
 					 unsigned int *q,
 					 int size_q, 
 					 unsigned int *R );
+__global__
+void binary_search_i( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 int size_I);
+
+__device__
+int bound_binary_search( unsigned int *db,
+				   int size_db, 
+				   unsigned int s,
+				   int lo,
+				   int hi);
+__global__
+void gen_index( unsigned int *db,
+			    int size_db, 
+				unsigned int *I,
+				int size_I);
+__global__
+void binary_search_p( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 unsigned int *I,
+					 int size_I);
 #endif

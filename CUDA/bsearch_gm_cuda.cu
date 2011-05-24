@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 	int I_size = atoi(argv[2]);
 	int Q_size = atoi(argv[3]);
 	int seed = atoi(argv[4]);
+	cudaError_t err;
 
 	RNG_rand48 D_r(seed);
 	D_r.generate(D_size);
@@ -37,21 +38,30 @@ int main(int argc, char *argv[]) {
 	RNG_rand48 Q_r(seed);
 	Q_r.generate(Q_size);
 	unsigned int *Q_d = (unsigned int *)Q_r.get_random_numbers();
+	
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "rand errors: %s.\n", cudaGetErrorString( err) );
+
 
 	nvRadixSort::RadixSort sort_D_d(D_size, true);
+	start();
 	sort_D_d.sort((unsigned int*)D_d, 0, D_size, 32);
 
-	unsigned int *R_d;
-	cudaMalloc((void **)&R_d, (Q_size)*sizeof(unsigned int));
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
 
-	/*
+	stop();
+	printf("x:%lu\n", report());
+
+
+
 	unsigned int *D_h = (unsigned int *)malloc( D_size * sizeof(unsigned int));
-	cudaMemcpy(D_h, D_d, (D_size) * sizeof(unsigned int), 
+	cudaMemcpy(D_h, D_d, (D_size) * sizeof(unsigned int),
 			cudaMemcpyDeviceToHost);
-	int i;
-	for (i = 0; i < D_size; i++)
-		printf("%d\n", D_h[i]);
-	*/
 
 	int block_size = 256;
 	dim3 dimBlock(block_size);
@@ -59,205 +69,72 @@ int main(int argc, char *argv[]) {
 	int grid_size = ( Q_size + block_size - 1) / (block_size * 1);
 	dim3 dimGrid( grid_size );
 
+	unsigned int *R_d;
+	cudaMalloc((void **)&R_d, (Q_size)*sizeof(unsigned int));
+
+	start();
 	binary_search_n <<<dimGrid, dimBlock>>> (D_d, D_size, Q_d, Q_size, R_d);
 
-	/*
-	cudaError_t err;
-	dim3 dimGridAR( ceil(float(A_size)/float(dimBlock.x)));
-	dim3 dimGridBR( ceil(float(B_size)/float(dimBlock.x)));
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "binary_search_n: %s.\n", cudaGetErrorString( err) );
 
-	unsigned int *A_start_h =
-			(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
-	unsigned int *A_len_h =
-			(unsigned int *) malloc( (A_size) * sizeof(unsigned int));
-	unsigned int *B_start_h =
-			(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-	//unsigned int *B_end_h =
-			//(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
-	unsigned int *B_len_h =
-			(unsigned int *) malloc( (B_size) * sizeof(unsigned int));
+	stop();
+	printf("n:%lu\n", report());
 
-	set_start_len( U_array, U_size, A_array, A_start_h, A_len_h, A_size );
-	//set_start_end( U_array, U_size, B_array, B_start_h, B_end_h, B_size );
-	set_start_len( U_array, U_size, B_array, B_start_h, B_len_h, B_size );
+	unsigned int *R_h_n = (unsigned int *)malloc( I_size * sizeof(unsigned int));
+	cudaMemcpy(R_h_n, R_d, (I_size) * sizeof(unsigned int), 
+			cudaMemcpyDeviceToHost);
 
-	// Move A and B to deviceB
-	unsigned int *A_start_d, *A_len_d, *B_start_d, *B_end_d, *B_len_d;
-	cudaMalloc((void **)&A_len_d, (A_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_start_d, (B_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_len_d, (B_size)*sizeof(unsigned int));
-	cudaMalloc((void **)&B_end_d, (B_size)*sizeof(unsigned int));
-
-	cudaMemcpy(A_start_d, A_start_h, (A_size) * sizeof(unsigned int), 
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(A_len_d, A_len_h, (A_size) * sizeof(unsigned int),
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_start_d, B_start_h, (B_size) * sizeof(unsigned int), 
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(B_len_d, B_len_h, (B_size) * sizeof(unsigned int),
-			cudaMemcpyHostToDevice);
-
-	set_end <<<dimGridBR, dimBlock>>> (B_start_d, B_end_d, B_len_d, B_size);
+	start();
+	binary_search_i <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
+			D_d, D_size, Q_d, Q_size, R_d, I_size);
 
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
-		fprintf(stderr, "Set end B: %s.\n", cudaGetErrorString( err) );
+		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
 
+	stop();
+	printf("i:%lu\n", report());
 
-	// R will hold the results of the intersection, for each interval A[i],
-	// R[i] will be the number of intervals in B that A[i] intersects,
-	unsigned int *R_d;
-	cudaMalloc((void **)&R_d, (A_size)*sizeof(unsigned int));
-	//unsigned long memup_time = report();
+	unsigned int *R_h_i = (unsigned int *)malloc( I_size * sizeof(unsigned int));
+	cudaMemcpy(R_h_i, R_d, (I_size) * sizeof(unsigned int), 
+			cudaMemcpyDeviceToHost);
 
+	int index_grid_size = ( I_size + block_size - 1) / (block_size * 1);
+	dim3 index_dimGrid( index_grid_size );
 
-	// Sort A
-	nvRadixSort::RadixSort radixsortA_start(A_size, true);
-	// Sort B by start
-	nvRadixSort::RadixSort radixsortB_start(B_size, true);
-	radixsortB_start.sort((unsigned int*)B_start_d, 0, B_size, 32);
+	unsigned int *I_d;
+	cudaMalloc((void **)&I_d, (I_size)*sizeof(unsigned int));
 
-	// Sort B by end
-	nvRadixSort::RadixSort radixsortB_end(B_size, true);
-	radixsortB_end.sort((unsigned int*)B_end_d, 0, B_size, 32);
+	start();
+	gen_index <<<index_dimGrid,dimBlock>>> ( D_d, D_size, I_d, I_size);
 
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
-		fprintf(stderr, "Sort: %s.\n", cudaGetErrorString( err) );
-
-	count_bsearch_cuda <<<dimGridSearch, dimBlock >>> (
-			A_start_d, A_len_d, A_size,
-			B_start_d, B_end_d, B_size,
-			R_d,
-			1);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "Search: %s.\n", cudaGetErrorString( err) );
-
-	parallel_sum(R_d, block_size, A_size, sum_threads);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "Sum: %s.\n", cudaGetErrorString( err) );
-
-	unsigned int O;
-	cudaMemcpy(&O, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
-	srand(time(NULL));	
-
-	RNG_rand48 A_start_r(rand());
-	RNG_rand48 B_start_r(rand());
-
-	unsigned int *A_start_r_d, *B_start_r_d;
-	unsigned int R, t=0;
-
-	int i, r = 0;
-	for  (i = 0; i < reps; i ++) {
-		A_start_r.generate(A_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Rand A: %s.\n", cudaGetErrorString( err) );
-
-		B_start_r.generate(B_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Rand B: %s.\n", cudaGetErrorString( err) );
-
-		A_start_r_d = (unsigned int *)A_start_r.get_random_numbers();
-		B_start_r_d = (unsigned int *)B_start_r.get_random_numbers();
-
-		normalize_rand <<<dimGridAR, dimBlock>>> (A_start_r_d, max, A_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Norm A: %s.\n", cudaGetErrorString( err) );
-
-		normalize_rand <<<dimGridBR, dimBlock>>> (B_start_r_d, max, B_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Norm B: %s.\n", cudaGetErrorString( err) );
-
-		radixsortA_start.sort((unsigned int*)A_start_r_d, 0, A_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort start A: %s.\n", cudaGetErrorString( err) );
-
-		radixsortB_start.sort((unsigned int*)B_start_r_d, 0, B_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort start B: %s.\n", cudaGetErrorString( err) );
-
-		set_end <<<dimGridBR, dimBlock>>> (B_start_r_d, B_end_d, B_len_d, 
-				B_size);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Set end B: %s.\n", cudaGetErrorString( err) );
-
-		radixsortB_end.sort((unsigned int*)B_end_d, 0, B_size, 32);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sort start B: %s.\n", cudaGetErrorString( err) );
-
-		count_bsearch_cuda <<<dimGridSearch, dimBlock >>> (
-				A_start_r_d, A_len_d, A_size,
-				B_start_r_d, B_end_d, B_size,
-				R_d,
-				1);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Search: %s.\n", cudaGetErrorString( err) );
-
-		parallel_sum(R_d, block_size, A_size, sum_threads);
-
-		cudaThreadSynchronize();
-		err = cudaGetLastError();
-		if(err != cudaSuccess)
-			fprintf(stderr, "Sum: %s.\n", cudaGetErrorString( err) );
-
-		cudaMemcpy(&R, R_d, 1 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-		
-		//fprintf(stderr, "%u\n", R);
-		t+=R;
-		if (R >= O)
-			++r;
-	}
+		fprintf(stderr, "index: %s.\n", cudaGetErrorString( err) );
 
 	stop();
 
-	double p = ( (double)(r + 1) ) / ( (double)(reps + 1) );
-	fprintf(stderr,"O:%d\tp:%G\tE:%G\n", O, p,(double)t/(double)reps);
-	printf("%d,%d,%d\tt:%lu\n", A_size, B_size, A_size + B_size, report());
+	printf("p:%lu\n", report());
+
+	start();
+	binary_search_p <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
+			D_d, D_size, Q_d, Q_size, R_d, I_d, I_size);
+
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
+
+	stop();
+	printf("s:%lu\n", report());
 
 
-	cudaFree(A_start_d);
-	cudaFree(A_len_d);
-	cudaFree(B_start_d);
-	cudaFree(B_len_d);
-	cudaFree(B_end_d);
-	cudaFree(R_d);
-	*/
+
 
 	return 0;
 }

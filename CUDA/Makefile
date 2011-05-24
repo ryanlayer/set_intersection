@@ -42,7 +42,8 @@ EXECS=cuda_bsearch \
 	  count_bsearch_sm_cuda \
 	  num_sim_brute_force_gm_cuda\
 	  num_sim_test \
-	  count_brute_force_gm_cuda
+	  count_brute_force_gm_cuda \
+	  bsearch_gm_cuda
 
 .SUFFIXES: .c .cpp .cu .o
 
@@ -59,6 +60,21 @@ cuda_bsearch: radixsort.cu.o \
 		set_intersect_cuda.cu.o\
 		cuda_bsearch.cu.o \
 		$(LFLAGS_B)
+
+bsearch_gm_cuda: radixsort.cu.o \
+			  radixsort.o \
+			  random.cu.o \
+			  set_intersect_cuda.cu.o \
+			  bsearch_gm_cuda.cu.o 
+	$(CPP) $(LFLAGS_A) -o $@ \
+		$(SRC) \
+		radixsort.cu.o \
+		random.cu.o \
+		radixsort.o \
+		set_intersect_cuda.cu.o\
+		bsearch_gm_cuda.cu.o \
+		$(LFLAGS_B)
+
 
 num_sim_bsearch_gm_cuda: radixsort.cu.o \
 			  radixsort.o \
