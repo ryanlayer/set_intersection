@@ -13,7 +13,8 @@ EXECS=order_seq get_rank_pairs get_maped_intervals \
 	  big_count_bsearch_seq \
 	  count_sweep_seq \
 	  s_e_list \
-	  nc_list 
+	  nc_list \
+	  gen_rand_beds
 
 BED_FILE_OBJS=../lib/bed.o
 SET_FILE_OBJS=../lib/set_intersect.o
@@ -29,6 +30,9 @@ num_sim_bsearch_seq: num_sim_bsearch_seq.o $(OBJS)
 
 count_bsearch_seq: count_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)
+
+gen_rand_beds: gen_rand_beds.o $(OBJS) 
+	$(CC) -o $@  $< $(OBJS) $(LDFLAGS)
 
 big_count_bsearch_seq: big_count_bsearch_seq.o $(OBJS) 
 	$(CC) -o $@  $< $(OBJS)

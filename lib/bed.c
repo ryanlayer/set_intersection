@@ -181,9 +181,9 @@ int chr_name_to_int(char *name)
 	int chr = 0;
 
 	if (name[3] == 'X')
-		chr = 'X';
+		chr = 23;
 	else if (name[3] == 'Y')
-		chr = 'Y';
+		chr = 24;
 	else 
 		chr = atoi(name + 3);	
 

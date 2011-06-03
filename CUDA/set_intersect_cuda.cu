@@ -196,7 +196,7 @@ void gen_index( unsigned int *db,
 }
 //}}}
 
-//{{{ __global__ void binary_search_i( unsigned int *db,
+//{{{ __global__ void binary_search_p( unsigned int *db,
 __global__
 void binary_search_p( unsigned int *db,
 					 int size_db, 
@@ -210,7 +210,7 @@ void binary_search_p( unsigned int *db,
 	extern __shared__ unsigned int L[];
 
 	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
-	int i, c, round = 0;
+	int c, round = 0;
 
 	while ( ( (blockDim.x * round) + threadIdx.x ) < size_I) {
 		c = (blockDim.x*round) + threadIdx.x;
@@ -235,7 +235,38 @@ void binary_search_p( unsigned int *db,
 		}
 
 		R[id] =  bound_binary_search(db, size_db, key, new_lo, new_hi);
-		//R[id] =  id;
+	}
+}
+//}}}
+
+//{{{ __global__ void binary_search_p( unsigned int *db,
+__global__
+void binary_search_gp( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 unsigned int *I,
+					 int size_I)
+				     
+{
+	unsigned int id = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	if (id < size_q) {
+		int key = q[id];
+		int b = binary_search(I, size_I, key);
+
+		int new_hi = ( (b+1)*size_db - (size_I - (b+2))) / size_I;
+		int new_lo = ( (b  )*size_db - (size_I - (b+1))) / size_I;
+
+		if (b == 0)
+			new_lo = -1;
+		else if (b == size_I) {
+			new_hi = size_db;
+			new_lo = ( (b-1)*size_db - (size_I - (b)) ) / size_I;
+		}
+
+		R[id] =  bound_binary_search(db, size_db, key, new_lo, new_hi);
 	}
 }
 //}}}
@@ -306,7 +337,6 @@ int bound_binary_search( unsigned int *db,
 	return hi;
 }
 //}}}
-
 
 //{{{ __device__ int binary_search( unsigned int *db, int size_db, unsigned int
 __device__

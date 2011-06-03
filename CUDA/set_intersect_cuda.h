@@ -144,4 +144,13 @@ void binary_search_p( unsigned int *db,
 					 unsigned int *R,
 					 unsigned int *I,
 					 int size_I);
+
+__global__
+void binary_search_gp( unsigned int *db,
+					 int size_db, 
+					 unsigned int *q,
+					 int size_q, 
+					 unsigned int *R,
+					 unsigned int *I,
+					 int size_I);
 #endif

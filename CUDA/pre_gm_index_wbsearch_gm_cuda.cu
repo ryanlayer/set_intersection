@@ -102,24 +102,6 @@ int main(int argc, char *argv[]) {
 	cudaMemcpy(R_h_n, R_d, (I_size) * sizeof(unsigned int), 
 			cudaMemcpyDeviceToHost);
 
-	//{{{ binary_search_i 
-	start();
-	binary_search_i <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
-			D_d, D_size, Q_d, Q_size, R_d, I_size);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
-
-	stop();
-	unsigned long search_index_time = report();
-	//}}}
-
-	unsigned int *R_h_i = (unsigned int *)malloc( I_size * sizeof(unsigned int));
-	cudaMemcpy(R_h_i, R_d, (I_size) * sizeof(unsigned int), 
-			cudaMemcpyDeviceToHost);
-
 	int index_grid_size = ( I_size + block_size - 1) / (block_size * 1);
 	dim3 index_dimGrid( index_grid_size );
 
@@ -136,23 +118,38 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "index: %s.\n", cudaGetErrorString( err) );
 	stop();
 	unsigned long index_time = report();
-	///}}}
 
-	//{{{ binary_search_p
+	unsigned int *I_h = (unsigned int *) malloc(I_size*sizeof(unsigned int));
+	cudaMemcpy(I_h, I_d, (I_size) * sizeof(unsigned int),
+			cudaMemcpyDeviceToHost);
+
+	//{{{binary_search_n 
 	start();
-	binary_search_p <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
-			D_d, D_size, Q_d, Q_size, R_d, I_d, I_size);
+	binary_search_n <<<dimGrid, dimBlock>>> (I_d, I_size, Q_d, Q_size, R_d);
 
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
+		fprintf(stderr, "binary_search_n: %s.\n", cudaGetErrorString( err) );
 
 	stop();
-	unsigned long search_pre_index_time = report();
-	unsigned long total_pre_index_time = index_time + search_pre_index_time;
+	printf("%lu\t", report());
+
+	start();
+	binary_search_n <<<dimGrid, dimBlock>>> (D_d, D_size, Q_d, Q_size, R_d);
+
+	cudaThreadSynchronize();
+	err = cudaGetLastError();
+	if(err != cudaSuccess)
+		fprintf(stderr, "binary_search_n: %s.\n", cudaGetErrorString( err) );
+
+	stop();
+	//unsigned long search_noindex_sorted_2_time = report();
+	printf("%lu\n", report());
 	//}}}
-	
+
+
+	///}}}
 	//{{{ binary_search_gp
 	start();
 	binary_search_gp <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
@@ -161,12 +158,12 @@ int main(int argc, char *argv[]) {
 	cudaThreadSynchronize();
 	err = cudaGetLastError();
 	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
+		fprintf(stderr, "binary_search_gp: %s.\n", cudaGetErrorString( err) );
 
 	stop();
-	unsigned long search_pre_g_index_time = report();
-	unsigned long total_pre_g_index_time = index_time + search_pre_g_index_time;
+	printf("%lu\n", report());
 	//}}}
+/*
 
 	//{{{ sort Q
 	start();
@@ -182,88 +179,21 @@ int main(int argc, char *argv[]) {
 	unsigned long sort_q_time = report();
 	//}}}
 	
-	//{{{binary_search_n 
-	start();
-	binary_search_n <<<dimGrid, dimBlock>>> (D_d, D_size, Q_d, Q_size, R_d);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_n: %s.\n", cudaGetErrorString( err) );
-
-	stop();
-	unsigned long search_noindex_sorted_1_time = report();
-
-	start();
-	binary_search_n <<<dimGrid, dimBlock>>> (D_d, D_size, Q_d, Q_size, R_d);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_n: %s.\n", cudaGetErrorString( err) );
-
-	stop();
-	unsigned long search_noindex_sorted_2_time = report();
-	//}}}
+	*/
 	
-	//{{{ binary_search_i 
-	start();
-	binary_search_i <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
-			D_d, D_size, Q_d, Q_size, R_d, I_size);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
-
-	stop();
-	unsigned long search_index_sorted_time = report();
-	//}}}
-
-	//{{{ index
-	start();
-	gen_index <<<index_dimGrid,dimBlock>>> ( D_d, D_size, I_d, I_size);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "index: %s.\n", cudaGetErrorString( err) );
-	stop();
-	unsigned long index_sorted_time = report();
-	///}}}
 	
-	//{{{ binary_search_p
-	start();
-	binary_search_p <<< dimGrid, dimBlock, I_size * sizeof(unsigned int) >>> (
-			D_d, D_size, Q_d, Q_size, R_d, I_d, I_size);
-
-	cudaThreadSynchronize();
-	err = cudaGetLastError();
-	if(err != cudaSuccess)
-		fprintf(stderr, "binary_search_i: %s.\n", cudaGetErrorString( err) );
-
-	stop();
-	unsigned long search_pre_index_sorted_time = report();
-	unsigned long total_pre_index_sorted_time =
-			index_sorted_time + search_pre_index_sorted_time;
-	//}}}
-	//
+	/*
 	printf(
 			"no_index_search "
-			"index_search "
-			"pre_index_search "
 			"pre_g_index_search "
 			"no_index_sort_search\n"
 			"%lu "
 			"%lu "
-			"%lu "
-			"%lu "
 			"%lu\n",
 			search_noindex_2_time,
-			search_index_time,
-			total_pre_index_time,
 			total_pre_g_index_time,
 			search_noindex_sorted_2_time + sort_q_time);
+	*/
 
 	/*
 	printf(
